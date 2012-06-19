@@ -1,5 +1,9 @@
 package de.rwth.comsys;
 
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -69,12 +73,10 @@ public class AndroidWSNControllerActivity extends Activity {
 				textView.append("Nothing found! \n");
 
 			Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
-			while (deviceIterator.hasNext()) {
+			while (deviceIterator.hasNext()) 
+			{
 				mDevice = deviceIterator.next();
-				
 				mManager.requestPermission(mDevice, mPermissionIntent);
-				
-
 			}
 		}
 	};
@@ -84,46 +86,206 @@ public class AndroidWSNControllerActivity extends Activity {
 		public void onClick(View v) {
 			
 			if(mDeviceConnection != null){
-				byte[] bytesUSB = new byte[3];
-				byte header = 0x3F;
 				
-				byte cmd = 0x15;
-				byte al = 0x0;
-				byte am = 0x0;
-				byte ah = 0x0;
+				byte[] startSeq = new byte[2];
+				startSeq[0] = (byte) 128;
 				
+				ByteBuffer startSeqRespBuf = ByteBuffer.allocate(2);
+				UsbRequest startSeqResponse = new UsbRequest();
+				startSeqResponse.initialize(mDeviceConnection, receivingEndpointMSP430);
+				startSeqResponse.queue(startSeqRespBuf, 2);
 				
-				
-				bytesUSB[0]=header;
-				bytesUSB[1]= 1;
-				bytesUSB[2] = cmd;
-				
-//				bytesUSB[2] = cmd ;
-//				bytesUSB[3] = am;
-//				bytesUSB[4] = ah;
-				for(int i = 5; i< bytesUSB.length; i++){
-					bytesUSB[i] = 7;
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 1, 200);
+				textView.append("sent: 0x"+Integer.toHexString((byte)startSeq[0])+"\n");
+				ByteConverter.bla(textView);
+				if (mDeviceConnection.requestWait() == startSeqResponse) {
+					short[] res = ByteConverter.getByteStreamFromSigned(startSeqRespBuf);
+					textView.append("result init: 0x"+Integer.toHexString(res[0])+"\n");
+					//textView.append("res: "+String.valueOf(res[0]));
+					/*for(int j = 0; j< startSeqRespBuf.capacity(); j++){
+						textView.append(startSeqRespBuf.get()+"\n");
+					}*/
 				}
-				
-				ByteBuffer buffer = ByteBuffer.allocate(64);
-		        UsbRequest request = new UsbRequest();
-		        request.initialize(mDeviceConnection, receivingEndpointMSP430);
-		        request.queue(buffer, 64);
-				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, bytesUSB, bytesUSB.length, 200); //do in another thread
-				if (mDeviceConnection.requestWait() == request) {
+
+				ByteBuffer buffer = ByteBuffer.allocate(2);
+		        UsbRequest response = new UsbRequest();
+		        response.initialize(mDeviceConnection, receivingEndpointMSP430);
+		        response.queue(buffer, 2);
+		        // Request to mass erase
+		        ByteBuffer massEraseBuf = getMassEraseCommand();
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, massEraseBuf.array(), massEraseBuf.capacity(), 200); //do in another thread
+				if (mDeviceConnection.requestWait() == response) {
 					
-					for(int j = 0; j< buffer.capacity(); j++){
-						textView.append(buffer.get()+"\n");
+					textView.append("MassEraseCmd("+massEraseBuf.capacity()+"):\n");
+					for(int j = 0; j< massEraseBuf.capacity(); j++){
+						textView.append("0x"+Integer.toHexString(massEraseBuf.get(j))+",");
 					}
-					
 				}
 				
+				short[] res = ByteConverter.getByteStreamFromSigned(buffer);
 				
-			}
+				textView.append("\nMassEraseResponse("+res.length+"):\n");
+				for(int i=0;i<res.length;i++)
+				{
+					textView.append("0x"+Integer.toHexString(res[i])+",");
+				}
+				/*
+				 *  set password cmd to unlock pw protected commands
+				 */
+				
+				/*ByteBuffer buffer2 = ByteBuffer.allocate(32);
+		        UsbRequest response2 = new UsbRequest();
+		        response.initialize(mDeviceConnection, receivingEndpointMSP430);
+		        response.queue(buffer2, 32);
+		        // Request to mass erase
+		        ByteBuffer readPW = getReceivePasswordCommand();
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, readPW.array(), readPW.capacity(), 200); //do in another thread
+				if (mDeviceConnection.requestWait() == response2) {
+					
+					textView.append("MassEraseCmd("+readPW.capacity()+"):\n");
+					for(int j = 0; j< readPW.capacity(); j++){
+						textView.append("0x"+Integer.toHexString(readPW.get(j))+",");
+					}
+				}
+				
+				short[] res2 = ByteConverter.getByteStreamFromSigned(buffer2);
+				
+				textView.append("\ngetPasswordResp:("+res2.length+"):\n");
+				for(int i=0;i<res2.length;i++)
+				{
+					textView.append("0x"+Integer.toHexString(res2[i])+",");
+				}*/
+				
+				/*
+				 *  read bsl version
+				 */				
+				
+				ByteBuffer buffer3 = ByteBuffer.allocate(32);
+		        UsbRequest response3 = new UsbRequest();
+		        response3.initialize(mDeviceConnection, receivingEndpointMSP430);
+		        response3.queue(buffer3, 32);
+		        // Request to mass erase
+		        ByteBuffer readVersion = getTransmitBslVersionCmd();
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, readVersion.array(), readVersion.capacity(), 200); //do in another thread
+				
 			
+				
+				if (mDeviceConnection.requestWait() == response3) {
+					
+					textView.append("read version cmd("+readVersion.capacity()+"):\n");
+					for(int j = 0; j< readVersion.capacity(); j++){
+						textView.append("0x"+Integer.toHexString(readVersion.get(j))+",");
+					}
+				}
+				
+				short[] res3 = ByteConverter.getByteStreamFromSigned(buffer3);
+				
+				textView.append("\nreadVerionsResp:("+res3.length+"):\n");
+				for(int i=0;i<res3.length;i++)
+				{
+					textView.append("0x"+Integer.toHexString(res3[i])+",");
+				}
+			}
 		}
 	};
 	
+	private ByteBuffer getMassEraseCommand()
+	{
+		short[] bytesUSB = new short[11];
+		
+		short HEADER = 0x80;
+		short CMD = 0x02; //bsl version; 0x18 mass erase
+		short L1  = 0x04;
+		short L2  = 0x04;
+		short AL  = 0x00;
+		short AH  = 0xFF; // means every 
+		short LL  = 0x06;
+		short LH  = 0xA5;
+		short CKL = 0x18 ^ 0x04 ^ 0x04 ^ 0xFF ^ 0x06;
+		short CKH = 0x04 ^ 0x04 ^ 0xFF ^ 0x06 ^ 0xA5;
+		short ACK = 0x90;
+		
+		bytesUSB[0] = HEADER; 
+		bytesUSB[1] = CMD;
+		bytesUSB[2] = L1;
+		bytesUSB[3] = L2;
+		bytesUSB[4] = AL;
+		bytesUSB[5] = AH;
+		bytesUSB[6] = LL;
+		bytesUSB[7] = LH;
+		bytesUSB[8] = CKL;
+		bytesUSB[9] = CKH;
+		bytesUSB[10] = ACK;
+		
+		ByteBuffer byteBuf = ByteConverter.getByteBufferFromShort(bytesUSB);
+		return byteBuf;
+	}
+	
+	// 80 10 24 24 xx xx xx xx D1 D2 … D20 CKL CKH ACK
+	private ByteBuffer getReceivePasswordCommand()
+	{
+		short[] bytesUSB = new short[11];
+		
+		short HEADER = 0x3F;
+		short CMD = 0x10; //get password
+		short L1  = 0x24;
+		short L2  = 0x24;
+		short AL  = 0x00;
+		short AH  = 0x00; 
+		short LL  = 0x00;
+		short LH  = 0x00;
+		short CKL = 0x10 ^ 0x24 ^ 0x24;
+		short CKH = 0x24 ^ 0x24;
+		short ACK = 0x90;
+		
+		bytesUSB[0] = HEADER; 
+		bytesUSB[1] = CMD;
+		bytesUSB[2] = L1;
+		bytesUSB[3] = L2;
+		bytesUSB[4] = AL;
+		bytesUSB[5] = AH;
+		bytesUSB[6] = LL;
+		bytesUSB[7] = LH;
+		bytesUSB[8] = CKL;
+		bytesUSB[9] = CKH;
+		bytesUSB[10] = ACK;
+		
+		ByteBuffer byteBuf = ByteConverter.getByteBufferFromShort(bytesUSB);
+		return byteBuf;
+	}
+	
+	//TX BSL version 80 1E 04 04 xx xx xx xx – – – – CKL CKH
+	private ByteBuffer getTransmitBslVersionCmd()
+	{
+		short[] bytesUSB = new short[11];
+		
+		short HEADER = 0x3F;
+		short CMD = 0x1E; //get bsl version
+		short L1  = 0x04;
+		short L2  = 0x04;
+		short AL  = 0x00;
+		short AH  = 0x00; 
+		short LL  = 0x00;
+		short LH  = 0x00;
+		short CKL = 0x1E ^ 0x04 ^ 0x04;
+		short CKH = 0x04 ^ 0x04;
+		short ACK = 0x00;
+		
+		bytesUSB[0] = HEADER; 
+		bytesUSB[1] = CMD;
+		bytesUSB[2] = L1;
+		bytesUSB[3] = L2;
+		bytesUSB[4] = AL;
+		bytesUSB[5] = AH;
+		bytesUSB[6] = LL;
+		bytesUSB[7] = LH;
+		bytesUSB[8] = CKL;
+		bytesUSB[9] = CKH;
+		bytesUSB[10] = ACK;
+		
+		ByteBuffer byteBuf = ByteConverter.getByteBufferFromShort(bytesUSB);
+		return byteBuf;
+	}
 	
 	/*
 	 * Invokes SendReceiverThread by Device.
@@ -237,11 +399,12 @@ public class AndroidWSNControllerActivity extends Activity {
 		}
 	}
 	
-	private static final String ACTION_USB_PERMISSION =
-		    "com.android.example.USB_PERMISSION";
-		private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-
-		    public void onReceive(Context context, Intent intent) {
+	private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
+	
+	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver()
+	{
+		    public void onReceive(Context context, Intent intent)
+		    {
 		        String action = intent.getAction();
 		        if (ACTION_USB_PERMISSION.equals(action)) {
 		            synchronized (this) {
