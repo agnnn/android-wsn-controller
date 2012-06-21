@@ -25,9 +25,9 @@ public class ByteConverter {
 			
 		}
 		short[] resultArr = new short[data.capacity()];
-		byte nextByte = 0;
+		short nextByte = 0;
 		if(data.capacity() > 0)
-			nextByte = data.get(0);
+			nextByte = (short)data.get(0);
 		for (int i=1;i<data.capacity();i++) {
 			short previousByte = data.get(i);
 			//System.out.println("previousByte: "+String.valueOf(previousByte));
