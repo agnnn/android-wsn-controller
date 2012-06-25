@@ -24,6 +24,7 @@ import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.hardware.usb.UsbRequest;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -56,6 +57,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		Button myButtonSend = (Button) findViewById(R.id.button1);
 		myButtonSend.setOnClickListener(buttonSendListener);
 		textView =   (TextView) findViewById(R.id.textView);
+		textView.setMovementMethod(new ScrollingMovementMethod());
 		
 		// retrieve USB Service
 		mManager = (UsbManager) getSystemService(Context.USB_SERVICE);
@@ -94,42 +96,38 @@ public class AndroidWSNControllerActivity extends Activity {
 			
 			if(mDeviceConnection != null){
 				
+				usbPurgeRXBuffer();
+				usbPurgeTXBuffer();
+				//resetDevice();
 				setLineProperty(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_ON);
 				
-				try {
-					Thread.sleep(250);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 				resetTelosb(true);
 				
-				byte[] startSeq = new byte[2];
-				startSeq[0] = (byte) 0x01;
-				startSeq[1] = (byte) 0x00;
+				byte[] startSeq = new byte[1];
+				startSeq[0] = (byte) 0x80;
+				//startSeq[1] = (byte) 0x01;
 				//startSeq[2] = (byte) 0x80;
 				
-				ByteBuffer startSeqRespBuf = ByteBuffer.allocate(2);
-				UsbRequest startSeqResponse = new UsbRequest();
-				startSeqResponse.initialize(mDeviceConnection, receivingEndpointMSP430);
-				startSeqResponse.queue(startSeqRespBuf, 2);
+				ByteBuffer startSeqRespBuf = ByteBuffer.allocate(200);
+				//UsbRequest startSeqResponse = new UsbRequest();
+				//startSeqResponse.initialize(mDeviceConnection, receivingEndpointMSP430);
+				//startSeqResponse.queue(startSeqRespBuf, 200);
 				
-				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 2, 200);
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 1, 2000);
 				textView.append("sent1: 0x"+Integer.toHexString((byte)startSeq[0])+"\n");
-				textView.append("sent2: 0x"+Integer.toHexString((byte)startSeq[1])+"\n");
+				//textView.append("sent2: 0x"+Integer.toHexString((byte)startSeq[1])+"\n");
 				//textView.append("sent3: 0x"+Integer.toHexString((byte)startSeq[2])+"\n");
 				ByteConverter.bla(textView);
-				if (mDeviceConnection.requestWait() == startSeqResponse) {
+				//UsbRequest resp = mDeviceConnection.requestWait();
+				//if (resp == startSeqResponse) 
+				byte[] buffer = new byte[4096];
+
+				if(mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, 4096, 500)>=0)
+				{
 					textView.append("orig result: \n");
-					textView.append("1: 0x"+Integer.toHexString(startSeqRespBuf.get(0))+"\n");
-					textView.append("2: 0x"+Integer.toHexString(startSeqRespBuf.get(1))+"\n");
-					//textView.append("3: 0x"+Integer.toHexString(((short)startSeqRespBuf.get(2)) & 0x00FF)+"\n");
-					//short[] res = ByteConverter.getByteStreamFromSigned(startSeqRespBuf);
-					//textView.append("result init: 0x"+Integer.toHexString(res[0])+"\n");
-					//textView.append("res: "+String.valueOf(res[0]));
-					/*for(int j = 0; j< startSeqRespBuf.capacity(); j++){
-						textView.append(startSeqRespBuf.get()+"\n");
-					}*/
+					for (int j=0;j<10;j++) {
+						textView.append(Integer.toString(j)+": 0x"+Integer.toHexString(buffer[j])+"\n");	
+					}
 				}
 
 			/*	ByteBuffer buffer = ByteBuffer.allocate(2);
@@ -355,7 +353,7 @@ public class AndroidWSNControllerActivity extends Activity {
 	 */
 	private void connectDeviceMSP430(UsbDevice device) {
 
-		//textView.append("setDevice " + device);
+		textView.append("setDevice " + device+"\n");
 		if (device.getInterfaceCount() != 1) {
 			textView.append("Could not find interface!\n");
 			return;
@@ -379,8 +377,9 @@ public class AndroidWSNControllerActivity extends Activity {
 //		textView.append("\n Endpoint 0: "+"\n" +endpoint0+"\n Type: "+endpoint0.getType() +"\n");
 //		textView.append("\n Endpoint 1: "+"\n" +endpoint1+"\n Type: "+endpoint1.getType() +"\n");
 		
-		if (endpoint0.getType() != UsbConstants.USB_ENDPOINT_XFER_BULK) {
-			textView.append("endpoint 0 has not correct type type\n");
+		if (endpoint0.getType() != UsbConstants.USB_ENDPOINT_XFER_BULK) 
+		{
+			textView.append("type: "+endpoint0.getType()+" endpoint 1 has not correct type\n");
 			return;
 		}
 		if (endpoint1.getType() != UsbConstants.USB_ENDPOINT_XFER_BULK) {
@@ -523,25 +522,23 @@ public class AndroidWSNControllerActivity extends Activity {
 	 */
 	private int setDTR(boolean dtr)
 	{
-		int iDtr = FTDI_Constants.SIO_SET_DTR_LOW;
+		byte[] iDtr =  new byte[1];
+		iDtr[0] = (byte)FTDI_Constants.SIO_SET_DTR_LOW;
 		if(dtr == true)
-			iDtr = FTDI_Constants.SIO_SET_DTR_HIGH;
-		switch(iDtr)
+			iDtr[0] = (byte)FTDI_Constants.SIO_SET_DTR_HIGH;
+		switch(iDtr[0])
 		{
-		case FTDI_Constants.SIO_SET_DTR_HIGH:
-		case FTDI_Constants.SIO_SET_DTR_LOW:
+		case (byte)FTDI_Constants.SIO_SET_DTR_HIGH:
+		case (byte)FTDI_Constants.SIO_SET_DTR_LOW:
 			break;
 		default:
-			Log.e("ftdi_control","The DTR value can only be SIO_SET_DTR_HIGH or SIO_SET_DTR_LOW: "+ Integer.toString(iDtr));
+			Log.e("ftdi_control","The DTR value can only be SIO_SET_DTR_HIGH or SIO_SET_DTR_LOW: "+ Integer.toString(iDtr[0]));
 			return -2;
 		}
 		int r;
-		if((r = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
-													 FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST,
-													 iDtr,
-													 1,
-													 null,
-													 0, 
+		if((r = mDeviceConnection.bulkTransfer(sendingEndpointMSP430, 
+												iDtr,
+													1, 
 													 2000)) != 0)
 		{
 			Log.e("ftdi_control","USB controlTransfer operation failed. controlTransfer return value is:"+Integer.toString(r));
@@ -565,22 +562,24 @@ public class AndroidWSNControllerActivity extends Activity {
 	 */
 	private int setRTS(boolean rts)
 	{
-		int iRts = FTDI_Constants.SIO_SET_RTS_LOW;
+		byte[] iRts = new byte[1];
+		iRts[0] = (byte)FTDI_Constants.SIO_SET_RTS_LOW;
 		if(rts == true)
-			iRts = FTDI_Constants.SIO_SET_RTS_HIGH;
-		switch(iRts)
+			iRts[0] = (byte)FTDI_Constants.SIO_SET_RTS_HIGH;
+		switch(iRts[0])
 		{
-		case FTDI_Constants.SIO_SET_RTS_HIGH:
-		case FTDI_Constants.SIO_SET_RTS_LOW:
+		case (byte)FTDI_Constants.SIO_SET_RTS_HIGH:
+		case (byte)FTDI_Constants.SIO_SET_RTS_LOW:
 			break;
 		default:
-			Log.e("ftdi_control","The RTS value can only be SIO_SET_RTS_HIGH or SIO_SET_RTS_LOW: "+ Integer.toString(iRts));
+			Log.e("ftdi_control","The RTS value can only be SIO_SET_RTS_HIGH or SIO_SET_RTS_LOW: "+ Integer.toString((byte)iRts[0]));
 			return -2;
 		}
 		int r;
-		if((r = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
-												  FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST,
-												  iRts, 1, null, 0, 2000)) != 0)
+		if((r = mDeviceConnection.bulkTransfer(sendingEndpointMSP430, 
+				iRts,
+					1, 
+					 2000)) != 0)
 		{
 			//textView.append(Integer.toString(-1)+",");
 			Log.e("ftdi_control","USB controlTransfer operation failed. controlTransfer return value is:"+Integer.toString(r));
@@ -600,9 +599,9 @@ public class AndroidWSNControllerActivity extends Activity {
 		{
 			setRTS(true);
 			setDTR(!bit);
-			Thread.sleep(0,002);
+			Thread.sleep(0,2);
 			setRTS(false);
-			Thread.sleep(0,001);
+			Thread.sleep(0,1);
 			setRTS(true);
 		} 
 		catch (InterruptedException e)
@@ -644,10 +643,10 @@ public class AndroidWSNControllerActivity extends Activity {
 		if(!validateBreak(break_type))return -2;
 		
 		//if we run to here, then every setting is valid. Just throw it through usb control message.
-		int combinedSetupValue = data_bits_type|(parity_type << 8)|(stop_bits_type << 11)|(break_type << 14);
+		byte[] combinedSetupValue = new byte[1];
+		combinedSetupValue[0] = (byte)(data_bits_type|(parity_type << 8)|(stop_bits_type << 11)|(break_type << 14));
 		int r;
-		if((r = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, FTDI_Constants.SIO_SET_DATA_REQUEST,
-											combinedSetupValue, 1, null, 0, 2000)) != 0)
+		if((r = mDeviceConnection.bulkTransfer(sendingEndpointMSP430, combinedSetupValue,1, 2000)) != 0)
 		{
 			Log.e("bl","USB controlTransfer operation failed. controlTransfer return value is:"+Integer.toString(r));
 			return -1;
@@ -710,5 +709,32 @@ public class AndroidWSNControllerActivity extends Activity {
 			Log.e("bla","Cannot recognize the break setting: "+ Integer.toString(break_type));
 			return false;
 		}
+	}
+	
+	//TODO: resetDevice, usbPurgeRXBuffer, usbPurgeTXBuffer, Hmm... maybe this shall be defined as private functions just for internal use only?
+	private int resetDevice()
+	{
+		byte[] bla = new byte[1];
+		bla[0] = FTDI_Constants.SIO_RESET_REQUEST | FTDI_Constants.SIO_RESET_SIO;
+		byte[] blab = new byte[1];
+		blab[0] = FTDI_Constants.SIO_RESET_REQUEST | FTDI_Constants.SIO_RESET_SIO;
+		int res=  mDeviceConnection.bulkTransfer(sendingEndpointMSP430, bla, 1,2000);
+		int res2=  mDeviceConnection.bulkTransfer(receivingEndpointMSP430, blab, 1,2000);
+		textView.append("resetSend result: "+bla[0]+" - "+res+"\n");
+		textView.append("resetRecv result: "+blab[0]+" - "+res2+"\n");
+		return res;
+	}
+	
+	private int usbPurgeRXBuffer()
+	{
+		return mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, FTDI_Constants.SIO_RESET_PURGE_RX,
+				FTDI_Constants.SIO_RESET_SIO, FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		//TODO: I give it a INTERFACE_ANY as parameter. Need to verify if it is correct. I believe the Index doesn't matter.
+	}
+	private int usbPurgeTXBuffer()
+	{
+		return mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, FTDI_Constants.SIO_RESET_PURGE_TX, 
+				FTDI_Constants.SIO_RESET_SIO, FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		//TODO: I give it a INTERFACE_ANY as parameter. Need to verify if it is correct. I believe the Index doesn't matter.
 	}
 }
