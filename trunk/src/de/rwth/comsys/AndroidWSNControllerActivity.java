@@ -106,12 +106,12 @@ public class AndroidWSNControllerActivity extends Activity {
 				textView.append("packSize: "+maxPacketSize+"\n");
 				boolean success = false;
 				int i=0;
-				while(!success || i > 9)
+				while(!(success || i > 5))
 				{
 					sendEntrySequence(true);
 				
 					try {
-						Thread.sleep(10);
+						Thread.sleep(200);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -134,7 +134,13 @@ public class AndroidWSNControllerActivity extends Activity {
 					//UsbRequest resp = mDeviceConnection.requestWait();
 					//if (resp == startSeqResponse) 
 					byte[] buffer = new byte[maxPacketSize];
-
+					
+					try {
+						Thread.sleep(5);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 					if(mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, maxPacketSize, 500) >=0 )
 					{
 						textView.append("try "+i+":\n");
