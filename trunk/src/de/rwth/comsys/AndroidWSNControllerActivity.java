@@ -94,16 +94,19 @@ public class AndroidWSNControllerActivity extends Activity {
 			
 			if(mDeviceConnection != null){
 				
-				resetTelosb(true);
+				setLineProperty(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_ON);
+				
 				try {
-					Thread.sleep(500);
+					Thread.sleep(250);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				byte[] startSeq = new byte[1];
-				startSeq[0] = (byte) 0x80;
-				//startSeq[1] = (byte) 0x01;
+				resetTelosb(true);
+				
+				byte[] startSeq = new byte[2];
+				startSeq[0] = (byte) 0x01;
+				startSeq[1] = (byte) 0x00;
 				//startSeq[2] = (byte) 0x80;
 				
 				ByteBuffer startSeqRespBuf = ByteBuffer.allocate(2);
@@ -111,19 +114,19 @@ public class AndroidWSNControllerActivity extends Activity {
 				startSeqResponse.initialize(mDeviceConnection, receivingEndpointMSP430);
 				startSeqResponse.queue(startSeqRespBuf, 2);
 				
-				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 1, 200);
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 2, 200);
 				textView.append("sent1: 0x"+Integer.toHexString((byte)startSeq[0])+"\n");
-				//textView.append("sent2: 0x"+Integer.toHexString((byte)startSeq[1])+"\n");
+				textView.append("sent2: 0x"+Integer.toHexString((byte)startSeq[1])+"\n");
 				//textView.append("sent3: 0x"+Integer.toHexString((byte)startSeq[2])+"\n");
 				ByteConverter.bla(textView);
 				if (mDeviceConnection.requestWait() == startSeqResponse) {
 					textView.append("orig result: \n");
 					textView.append("1: 0x"+Integer.toHexString(startSeqRespBuf.get(0))+"\n");
-					textView.append("2: 0x"+Integer.toHexString(((short)startSeqRespBuf.get(1)) & 0x00FF)+"\n");
+					textView.append("2: 0x"+Integer.toHexString(startSeqRespBuf.get(1))+"\n");
 					//textView.append("3: 0x"+Integer.toHexString(((short)startSeqRespBuf.get(2)) & 0x00FF)+"\n");
-					short[] res = ByteConverter.getByteStreamFromSigned(startSeqRespBuf);
-					textView.append("result init: 0x"+Integer.toHexString(res[0])+"\n");
-					textView.append("res: "+String.valueOf(res[0]));
+					//short[] res = ByteConverter.getByteStreamFromSigned(startSeqRespBuf);
+					//textView.append("result init: 0x"+Integer.toHexString(res[0])+"\n");
+					//textView.append("res: "+String.valueOf(res[0]));
 					/*for(int j = 0; j< startSeqRespBuf.capacity(); j++){
 						textView.append(startSeqRespBuf.get()+"\n");
 					}*/
@@ -536,7 +539,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		if((r = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
 													 FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST,
 													 iDtr,
-													 mUSBInterface.getId(),
+													 1,
 													 null,
 													 0, 
 													 2000)) != 0)
@@ -577,7 +580,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		int r;
 		if((r = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
 												  FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST,
-												  iRts, mUSBInterface.getId(), null, 0, 2000)) != 0)
+												  iRts, 1, null, 0, 2000)) != 0)
 		{
 			//textView.append(Integer.toString(-1)+",");
 			Log.e("ftdi_control","USB controlTransfer operation failed. controlTransfer return value is:"+Integer.toString(r));
@@ -615,5 +618,97 @@ public class AndroidWSNControllerActivity extends Activity {
 		telosWriteByte((byte)(0x90 | (addr << 1)));
 		telosWriteByte(cmd);
 		telosStop();
+	}
+	
+	/**
+	 * Sets the line property, including num of databits, num of stop bits, parity, and break.
+	 * The job is done by sending usb control message to FTDI device.
+	 *
+	 * @param data_bits_type the data_bits_type
+	 * @param stop_bits_type the stop_bits_type
+	 * @param parity_type the parity_type
+	 * @param break_type the break_type
+	 * @return 0: everything is OK.
+	 *  -1: USB controlTransfer method failed.
+	 *  -2: one input parameter is not reasonable.
+	 */
+	public int setLineProperty(int data_bits_type, int stop_bits_type, int parity_type, int break_type)
+	{
+		//check the number of data bits is valid.
+		if(!validateDataBits(data_bits_type)) return -2;
+		//check if the stop bits type is valid
+		if(!validateStopBits(stop_bits_type)) return -2;
+		//check if the parity type is valid
+		if(!validateParity(parity_type)) return -2;
+		//check if the break type is valid
+		if(!validateBreak(break_type))return -2;
+		
+		//if we run to here, then every setting is valid. Just throw it through usb control message.
+		int combinedSetupValue = data_bits_type|(parity_type << 8)|(stop_bits_type << 11)|(break_type << 14);
+		int r;
+		if((r = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, FTDI_Constants.SIO_SET_DATA_REQUEST,
+											combinedSetupValue, 1, null, 0, 2000)) != 0)
+		{
+			Log.e("bl","USB controlTransfer operation failed. controlTransfer return value is:"+Integer.toString(r));
+			return -1;
+		}
+		else
+		{
+			textView.append("set line prop ok\n");
+			return 0;
+		}
+	}
+	
+	protected boolean validateDataBits(int data_bits_type)
+	{
+		switch(data_bits_type){//FTDI document D2xx programming guide says it only supports 7 or 8.
+		case FTDI_Constants.DATA_BITS_7:
+		case FTDI_Constants.DATA_BITS_8:
+			return true;
+		default:
+			Log.e("bla","Cannot recognize the data bits setting: "+ Integer.toString(data_bits_type));
+			return false;
+		}
+	}
+	
+	protected boolean validateStopBits(int stop_bits_type)
+	{
+		switch(stop_bits_type){
+		case FTDI_Constants.STOP_BITS_1:
+		case FTDI_Constants.STOP_BITS_15:
+		case FTDI_Constants.STOP_BITS_2:
+			return true;
+		default:
+			Log.e("bla","Cannot recognize the stop bits setting: "+ Integer.toString(stop_bits_type));
+			return false;
+		}
+	}
+	
+	protected boolean validateParity(int parity_type)
+	{
+		switch(parity_type){
+		case FTDI_Constants.PARITY_EVEN:
+		case FTDI_Constants.PARITY_MARK:
+		case FTDI_Constants.PARITY_NONE:
+		case FTDI_Constants.PARITY_ODD:
+		case FTDI_Constants.PARITY_SPACE:
+			return true;
+		default:
+			Log.e("bla","Cannot recognize the parity setting: "+ Integer.toString(parity_type));
+			return false;
+		}
+	}
+	
+	protected boolean validateBreak(int break_type)
+	{
+		switch(break_type)
+		{
+		case FTDI_Constants.BREAK_OFF:
+		case FTDI_Constants.BREAK_ON:
+			return true;
+		default:
+			Log.e("bla","Cannot recognize the break setting: "+ Integer.toString(break_type));
+			return false;
+		}
 	}
 }
