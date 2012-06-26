@@ -1,10 +1,5 @@
 package de.rwth.comsys;
 
-import java.io.FileDescriptor;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -15,14 +10,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.hardware.usb.UsbRequest;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
@@ -30,8 +23,6 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
-import java.io.*;
-
 import de.rwth.comsys.Enums.FTDI_Constants;
 
 public class AndroidWSNControllerActivity extends Activity {
@@ -99,84 +90,73 @@ public class AndroidWSNControllerActivity extends Activity {
 				//usbPurgeRXBuffer();
 				//usbPurgeTXBuffer();
 				//resetDevice();
+				ByteConverter.bla(textView);
 				ftdi_set_line_property(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
 				int maxPacketSize = sendingEndpointMSP430.getMaxPacketSize();
 				int attributes = sendingEndpointMSP430.getAttributes();
 				textView.append("attribs: "+attributes+"\n");
 				textView.append("packSize: "+maxPacketSize+"\n");
-				boolean success = false;
-				int i=0;
-				while(!(success || i > 5))
-				{
-					sendEntrySequence(true);
 				
-					try {
+		        // Request to mass erase
+		        
+		       
+		        int i=0;
+		        boolean success = false;
+		        
+		        
+		        while(!(success || i>5))
+		        {
+		        	sendResetSequence(true); 	//reset seq
+					sendBslSync(); 				// sendHeader
+		        	try {
 						Thread.sleep(200);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					byte[] startSeq = new byte[1];
-					startSeq[0] = (byte) 0x80;
-					//startSeq[1] = (byte) 0x01;
-					//startSeq[2] = (byte) 0x80;
-
-					//ByteBuffer startSeqRespBuf = ByteBuffer.allocate(200);
-					//UsbRequest startSeqResponse = new UsbRequest();
-					//startSeqResponse.initialize(mDeviceConnection, receivingEndpointMSP430);
-					//startSeqResponse.queue(startSeqRespBuf, 200);
-					
-					mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 1, 2000);
-					//textView.append("sent1: 0x"+Integer.toHexString((byte)startSeq[0])+"\n");
-					//textView.append("sent2: 0x"+Integer.toHexString((byte)startSeq[1])+"\n");
-					//textView.append("sent3: 0x"+Integer.toHexString((byte)startSeq[2])+"\n");
-					//ByteConverter.bla(textView);
-					//UsbRequest resp = mDeviceConnection.requestWait();
-					//if (resp == startSeqResponse) 
-					byte[] buffer = new byte[maxPacketSize];
-					
-					try {
-						Thread.sleep(5);
+		        	/* clear data buffer */
+		        	byte[] buffer = new byte[maxPacketSize];
+		        	int dataSize = mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, maxPacketSize, 5000);
+		        	textView.append("discarded "+dataSize+" bytes before massErase\n");
+		        	byte[] massEraseBuf = getMassEraseCommand();
+		        	mDeviceConnection.bulkTransfer(sendingEndpointMSP430, massEraseBuf, massEraseBuf.length, 2000); //do in another thread
+		        	try {
+						Thread.sleep(1000);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					if(mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, maxPacketSize, 500) >=0 )
-					{
-						textView.append("try "+i+":\n");
-						for (int j=0;j<maxPacketSize;j++) {
-							if(buffer[j] == 0)
-								break;
-							if(j >= 2)
-								success = true;
-							textView.append(Integer.toString(j)+": 0x"+Integer.toHexString((byte)buffer[j] & 0xFF)+"\n");
-						}
-					}
-					i++;
-				}
-			/*	ByteBuffer buffer = ByteBuffer.allocate(2);
-		        UsbRequest response = new UsbRequest();
-		        response.initialize(mDeviceConnection, receivingEndpointMSP430);
-		        response.queue(buffer, 2);
-		        // Request to mass erase
-		        ByteBuffer massEraseBuf = getMassEraseCommand();
-				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, massEraseBuf.array(), massEraseBuf.capacity(), 200); //do in another thread
-				if (mDeviceConnection.requestWait() == response) {
-					
-					textView.append("MassEraseCmd("+massEraseBuf.capacity()+"):\n");
-					for(int j = 0; j< massEraseBuf.capacity(); j++){
-						textView.append("0x"+Integer.toHexString(massEraseBuf.get(j))+",");
-					}
-				}
+		        	buffer = new byte[maxPacketSize];
+		        	dataSize = mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, maxPacketSize, 5000);
+		        	if(dataSize >=0 )
+		        	{
+		        		textView.append("mass erase sent "+massEraseBuf+" bytes("+i+"):"+dataSize+" bytes Response\n");
+		        		for (int j=0;j<maxPacketSize;j++) 
+		        		{
+		        			if(j>=2)
+		        			{
+		        				textView.append(Integer.toString(j)+": 0x"+Integer.toHexString((byte)buffer[j] & 0xFF)+"\n");
+		        				if(j == 2)
+		        				{
+		        					if((buffer[j] & 0xFF) == 0x90)
+		        					{
+		        						success = true;
+		        					}
+		        					//break;
+		        				}
+		        				if(j == 5)
+		        					break;
+		        			}
+		        		}
+		        	}
+		        	else
+		        	{
+		        		textView.append("noDataToReceive("+i+")");
+		        	}
+		        	i++;
+		        }
+		        textView.append("\nMassEraseFinish\n");
 				
-				short[] res = ByteConverter.getByteStreamFromSigned(buffer);
-				
-				textView.append("\nMassEraseResponse("+res.length+"):\n");
-				for(int i=0;i<res.length;i++)
-				{
-					textView.append("0x"+Integer.toHexString(res[i])+",");
-				}
-				*/
 				/*
 				 *  set password cmd to unlock pw protected commands
 				 */
@@ -234,40 +214,95 @@ public class AndroidWSNControllerActivity extends Activity {
 				}*/
 			}
 		}
+
+		
 	};
 	
-	private ByteBuffer getMassEraseCommand()
+	private byte[] getMassEraseCommand()
 	{
-		short[] bytesUSB = new short[11];
+		byte[] bytesUSB = new byte[11];
 		
 		short HEADER = 0x80;
-		short CMD = 0x02; //bsl version; 0x18 mass erase
+		short CMD = 0x18; //bsl version; 0x18 mass erase
 		short L1  = 0x04;
 		short L2  = 0x04;
 		short AL  = 0x00;
 		short AH  = 0xFF; // means every 
 		short LL  = 0x06;
 		short LH  = 0xA5;
-		short CKL = 0x18 ^ 0x04 ^ 0x04 ^ 0xFF ^ 0x06;
-		short CKH = 0x04 ^ 0x04 ^ 0xFF ^ 0x06 ^ 0xA5;
+		short CKL = ~(0x80 ^ 0x04 ^ 0x00 ^ 0x06);
+		short CKH = ~(0x18 ^ 0x04 ^ 0x0FF^ 0xA5);
 		short ACK = 0x90;
 		
-		bytesUSB[0] = HEADER; 
-		bytesUSB[1] = CMD;
-		bytesUSB[2] = L1;
-		bytesUSB[3] = L2;
-		bytesUSB[4] = AL;
-		bytesUSB[5] = AH;
-		bytesUSB[6] = LL;
-		bytesUSB[7] = LH;
-		bytesUSB[8] = CKL;
-		bytesUSB[9] = CKH;
-		bytesUSB[10] = ACK;
+		bytesUSB[0] = (byte)(HEADER & 0xFF); 
+		bytesUSB[1] = (byte)(CMD & 0xFF);
+		bytesUSB[2] = (byte)(L1 & 0xFF);
+		bytesUSB[3] = (byte)(L2 & 0xFF);
+		bytesUSB[4] = (byte)(AL & 0xFF);
+		bytesUSB[5] = (byte)(AH & 0xFF);
+		bytesUSB[6] = (byte)(LL & 0xFF);
+		bytesUSB[7] = (byte)(LH & 0xFF);
+		bytesUSB[8] = (byte)(CKL & 0xFF);
+		bytesUSB[9] = (byte)(CKH & 0xFF);
+		bytesUSB[10] = (byte)(ACK & 0xFF);
 		
-		ByteBuffer byteBuf = ByteConverter.getByteBufferFromShort(bytesUSB);
-		return byteBuf;
+		
+		return bytesUSB;
 	}
 	
+	private void sendBslSync() 
+	{
+		try 
+		{
+			int i=0;
+			//boolean success = false;
+			int maxPacketSize = 64;
+			byte[] buffer = new byte[maxPacketSize];
+			int recvResult = mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, maxPacketSize, 5000);
+			textView.append("Discarded "+recvResult+" bytes before sync\n");
+			//while(!(success || i > 5))
+			{
+				byte[] startSeq = new byte[1];
+				startSeq[0] = (byte) 0x80;
+
+				mDeviceConnection.bulkTransfer(sendingEndpointMSP430, startSeq, 1, 2000);
+				buffer = new byte[maxPacketSize];
+
+				Thread.sleep(500);
+
+				recvResult = mDeviceConnection.bulkTransfer(receivingEndpointMSP430, buffer, maxPacketSize, 5000);
+				if(recvResult >=2 )
+				{
+					textView.append("sendStartSeq("+i+"): "+recvResult+" bytes Response\n");
+					for (int j=2;j<recvResult;j++) {
+
+						if(j >= 0)
+						{
+							textView.append(Integer.toString(j)+": 0x"+Integer.toHexString((byte)buffer[j] & 0xFF)+"\n");
+							if(j == 0)
+							{
+								int res = (buffer[j] & 0xFF);
+								if( res == 0x90)
+								{
+									break;
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					textView.append("noDataThere: "+recvResult+"\n");
+				}
+				i++;
+			}
+		}
+		catch (InterruptedException e) 
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	// 80 10 24 24 xx xx xx xx D1 D2 … D20 CKL CKH ACK
 	private ByteBuffer getReceivePasswordCommand()
 	{
@@ -439,8 +474,10 @@ public class AndroidWSNControllerActivity extends Activity {
 			if (connection != null && connection.claimInterface(mUSBInterface, true)) {
 				textView.append("open SUCCESS\n");
 				mDeviceConnection = connection;
-				textView.append("ftdi_usb_reset: "+ftdi_usb_reset()+"\n");
-				textView.append("ftdi_set_baudrate 9600: "+ftdi_set_baudrate()+"\n");
+				ftdi_usb_reset();
+				ftdi_set_baudrate();
+				//textView.append("ftdi_usb_reset: "+ftdi_usb_reset()+"\n");
+				//textView.append("ftdi_set_baudrate 9600: "+ftdi_set_baudrate()+"\n");
 
 			} else {
 				textView.append("open FAIL");
@@ -492,7 +529,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		// TODO release device
 	}
 	
-	private void sendEntrySequence(boolean invokeBsl) {
+	private void sendResetSequence(boolean invokeBsl) {
 		if(invokeBsl)
 		{
 			telosWriteCmd((byte)0,(byte)1);
@@ -702,14 +739,34 @@ public class AndroidWSNControllerActivity extends Activity {
 	
 	private int ftdi_usb_reset()
 	{
-		return mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, FTDI_Constants.SIO_RESET_REQUEST, 
-				FTDI_Constants.SIO_RESET_SIO, FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		int result = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
+													   FTDI_Constants.SIO_RESET_REQUEST, 
+													   FTDI_Constants.SIO_RESET_SIO, 
+													   FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		textView.append("resetUsb on ReqOutType: "+result+"\n");
+		
+		result = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_IN_REQTYPE, 
+				   								   FTDI_Constants.SIO_RESET_REQUEST, 
+				   								   FTDI_Constants.SIO_RESET_SIO, 
+				   								   FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		textView.append("resetUsb on ReqInType: "+result+"\n");
+		return 0;
 	}
 	
 	
 	private int ftdi_set_baudrate() {
-		return mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 
-				0x4138, FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		int result = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
+													   FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 
+													   0x4138, 
+													   FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		textView.append("setBaudrate on ReqOutType: "+result+"\n");
+		
+		result = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_IN_REQTYPE, 
+											   	   FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 
+											   	   0x4138, 
+											   	   FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		textView.append("setBaudrate on ReqInType: "+result+"\n");
+		return 0;
 	}
 	
 	private int ftdi_set_line_property(int bits,int sbit, int parity,int break_type)
@@ -758,11 +815,17 @@ public class AndroidWSNControllerActivity extends Activity {
 			break;
 		}
 
-		if (mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
-											  FTDI_Constants.SIO_SET_DATA_REQUEST, 
-											  value,
-											  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
-			return -1;
+		int result = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
+													   FTDI_Constants.SIO_SET_DATA_REQUEST, 
+													   value,
+													   FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		textView.append("setLineProp on ReqOutType: "+result+"\n");
+		result = mDeviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_IN_REQTYPE, 
+				   								   FTDI_Constants.SIO_SET_DATA_REQUEST, 
+				   								   value,
+				   								   FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		
+		textView.append("setLineProp on ReqInType: "+result+"\n");
 
 		return 0;
 	}
