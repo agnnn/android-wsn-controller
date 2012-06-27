@@ -79,6 +79,9 @@ public class SendReceiverThreadMSP430 extends Thread {
 				Thread.sleep(200);
 								
 				boolean writeResult = ftdiInterface.write(data, 1000);
+				/*for (byte b : data) {
+					doOutput("0x"+Integer.toHexString(b));
+				}*/
 				doOutput("Write password: "+writeResult);
 				
 				byte[] readResult = ftdiInterface.read(5000);

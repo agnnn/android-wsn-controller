@@ -26,7 +26,7 @@ public class TelosBConnector {
 	private UsbManager mManager;
 	private ArrayList<MSP430Command> commandList;
 	private byte[] password;
-	private final int PASSWORD_LENGTH = 20;
+	private final int PASSWORD_LENGTH = 32;
 	private AndroidWSNControllerActivity context;
 	
 	public TelosBConnector(UsbManager usbManager,AndroidWSNControllerActivity parentActivity)
@@ -218,6 +218,7 @@ public class TelosBConnector {
 			}
 		}
 	}
+	// 8 + 32 + 2
 	// 80 10 24 24 xx xx xx xx D1 D2 … D20 CKL CKH ACK
 	private byte[] getReceivePasswordCommand(byte[] password)
 	{
@@ -243,6 +244,7 @@ public class TelosBConnector {
 		bytesUSB[5] = (byte)AH;
 		bytesUSB[6] = (byte)LL;
 		bytesUSB[7] = (byte)LH;
+		
 		for(int i=0;i<PASSWORD_LENGTH;i++)
 		{
 			byte curByte = password[i];
@@ -256,9 +258,9 @@ public class TelosBConnector {
 			}
 			bytesUSB[8+i] = curByte;
 		}
-		bytesUSB[28] = (byte) ~CKL;
-		bytesUSB[29] = (byte) ~CKH;
-		bytesUSB[30] = (byte)ACK;
+		bytesUSB[8+PASSWORD_LENGTH] = (byte)~CKL;
+		bytesUSB[9+PASSWORD_LENGTH] = (byte)~CKH;
+		bytesUSB[10+PASSWORD_LENGTH] = (byte)ACK;
 		
 		return bytesUSB;
 	}
