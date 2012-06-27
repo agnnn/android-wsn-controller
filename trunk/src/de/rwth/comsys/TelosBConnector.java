@@ -1,20 +1,18 @@
 package de.rwth.comsys;
 
+import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
-import de.rwth.comsys.Enums.BSLCoreCommandsMSP430;
-import de.rwth.comsys.Enums.FTDI_Constants;
-import de.rwth.comsys.Enums.MSP430_Command;
-
+import android.content.Context;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.util.Log;
 import android.widget.TextView;
+import de.rwth.comsys.Enums.MSP430_Command;
 
 public class TelosBConnector {
 	
@@ -27,13 +25,25 @@ public class TelosBConnector {
 	private FTDI_Interface ftdiInterface;
 	private UsbManager mManager;
 	private ArrayList<MSP430Command> commandList;
-	public TelosBConnector(UsbManager usbManager,TextView tv)
+	private byte[] password;
+	private final int PASSWORD_LENGTH = 20;
+	private AndroidWSNControllerActivity context;
+	
+	public TelosBConnector(UsbManager usbManager,AndroidWSNControllerActivity parentActivity)
 	{
 		if(usbManager == null)
 			throw new IllegalArgumentException("Error: usbManager is null");
 		this.mManager = usbManager;
-		this.textView = tv;
+		this.context = parentActivity;
 		this.commandList = new ArrayList<MSP430Command>();
+		this.textView = context.getOutputTextView();
+		
+		// set the default password
+		byte[] defaultPwd = new byte[PASSWORD_LENGTH];
+		for (int i=0;i<PASSWORD_LENGTH;i++) {
+			defaultPwd[i] =  (byte)0xFF;
+		}
+		this.password = defaultPwd;
 	}
 	
 	public void execMassErase() throws Exception
@@ -49,9 +59,29 @@ public class TelosBConnector {
 			throw new Exception("No Connection available");
 	}
 	
+	public void execFlash(String file) throws Exception
+	{
+		textView.append("exec flash erase\n");
+		/*FileInputStream filein = context.openFileInput(file);
+		int available = filein.available();
+		byte[] data = new byte[available];
+		int readBytes = filein.read(data);*/
+		
+		if(mDeviceConnection != null)
+		{
+			commandList.clear();
+			commandList.add(new MSP430Command(MSP430_Command.MASS_ERASE,getMassEraseCommand()));
+			commandList.add(new MSP430Command(MSP430_Command.TRANSMIT_PASSWORD, getReceivePasswordCommand(this.password)));
+			//commandList.add(new MSP430Command(MSP430_Command.FLASH, data, (short)0, (short)0));
+			startExecutionThread();
+		}
+		else
+			throw new Exception("No Connection available");
+	}
+	
 	private void startExecutionThread()
 	{
-		Thread thread = null;
+		textView.append("start exec thread\n");
 		
 		// device and connection set?
 		if(mDeviceConnection == null){
@@ -68,18 +98,16 @@ public class TelosBConnector {
 				try{
 					textView.append("start execution\n");
 					SendReceiverThreadMSP430 myThread = new SendReceiverThreadMSP430( commandList,ftdiInterface );
-					myThread.setTextView(textView);
-					thread = new Thread(myThread);
-					thread.run();
+					myThread.setContext(this.context);
+					myThread.start();
 					return;
 				}catch(Exception e){
-					textView.append("Can't start SendReceiverThreadMSP430!\n");
+					textView.append("Error: SendReceiverThreadMSP430! - "+e.getMessage()+"\n");
 				}
 				break;
 			default: 
 				textView.append("Can't find corresponding product id! \n");
 				break;
-				
 		}
 		return;
 	}
@@ -191,11 +219,11 @@ public class TelosBConnector {
 		}
 	}
 	// 80 10 24 24 xx xx xx xx D1 D2 … D20 CKL CKH ACK
-	private ByteBuffer getReceivePasswordCommand()
+	private byte[] getReceivePasswordCommand(byte[] password)
 	{
-		short[] bytesUSB = new short[11];
+		byte[] bytesUSB = new byte[11+PASSWORD_LENGTH];
 		
-		short HEADER = 0x3F;
+		short HEADER = 0x80;
 		short CMD = 0x10; //get password
 		short L1  = 0x24;
 		short L2  = 0x24;
@@ -203,24 +231,36 @@ public class TelosBConnector {
 		short AH  = 0x00; 
 		short LL  = 0x00;
 		short LH  = 0x00;
-		short CKL = 0x10 ^ 0x24 ^ 0x24;
-		short CKH = 0x24 ^ 0x24;
+		short CKL = 0x80 ^ 0x24;
+		short CKH = 0x10 ^ 0x24;
 		short ACK = 0x90;
 		
-		bytesUSB[0] = HEADER; 
-		bytesUSB[1] = CMD;
-		bytesUSB[2] = L1;
-		bytesUSB[3] = L2;
-		bytesUSB[4] = AL;
-		bytesUSB[5] = AH;
-		bytesUSB[6] = LL;
-		bytesUSB[7] = LH;
-		bytesUSB[8] = CKL;
-		bytesUSB[9] = CKH;
-		bytesUSB[10] = ACK;
+		bytesUSB[0] = (byte)HEADER; 
+		bytesUSB[1] = (byte)CMD;
+		bytesUSB[2] = (byte)L1;
+		bytesUSB[3] = (byte)L2;
+		bytesUSB[4] = (byte)AL;
+		bytesUSB[5] = (byte)AH;
+		bytesUSB[6] = (byte)LL;
+		bytesUSB[7] = (byte)LH;
+		for(int i=0;i<PASSWORD_LENGTH;i++)
+		{
+			byte curByte = password[i];
+			if(i%2 == 0)
+			{
+				CKL ^= curByte;
+			}
+			else
+			{
+				CKH ^= curByte;
+			}
+			bytesUSB[8+i] = curByte;
+		}
+		bytesUSB[28] = (byte) ~CKL;
+		bytesUSB[29] = (byte) ~CKH;
+		bytesUSB[30] = (byte)ACK;
 		
-		ByteBuffer byteBuf = ByteConverter.getByteBufferFromShort(bytesUSB);
-		return byteBuf;
+		return bytesUSB;
 	}
 	
 	//TX BSL version 80 1E 04 04 xx xx xx xx – – – – CKL CKH
@@ -256,6 +296,18 @@ public class TelosBConnector {
 		return byteBuf;
 	}
 	
+	/**
+	 * @return the password
+	 */
+	public byte[] getPassword() {
+		return password;
+	}
 
+	/**
+	 * @param password the password to set
+	 */
+	public void setPassword(byte[] password) {
+		this.password = password;
+	}
 
 }
