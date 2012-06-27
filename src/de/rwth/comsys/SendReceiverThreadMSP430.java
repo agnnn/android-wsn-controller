@@ -9,6 +9,10 @@ import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import android.app.Activity;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -20,26 +24,26 @@ import de.rwth.comsys.Enums.ThreadStates;
  * @author Christian
  * 
  */
-public class SendReceiverThreadMSP430 implements Runnable {
+public class SendReceiverThreadMSP430 extends Thread {
 	private FTDI_Interface ftdiInterface;
 	private ArrayList<MSP430Command> commands;
-	private ThreadStates state = ThreadStates.INIT;
-	private TextView textView;
 	public int timeout = 4000;
+	private AndroidWSNControllerActivity context;
 
 	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface) {
 		this.ftdiInterface = ftdiInterface;
+		ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
 		this.commands = commands;
 	}
 
-	public void setTextView(TextView textView)
+	public void setContext(AndroidWSNControllerActivity context)
 	{
-		this.textView = textView;
+		this.context = context;
 	}
 	
 	public void run() {
 		for (MSP430Command cmd : commands) {
-
+			doOutput("pollCmd: "+cmd.getCommand().toString());
 			switch (cmd.getCommand()) {
 			case MASS_ERASE: {
 				doMassErase(cmd.getData());
@@ -49,9 +53,12 @@ public class SendReceiverThreadMSP430 implements Runnable {
 				setPassword(cmd.getData());
 				break;
 			}
+			case TRANSMIT_PASSWORD: {
+				transmitPassword(cmd.getData());
+				break;
+			}
 			}
 		}
-
 	}
 
 	private void setPassword(byte[] password) {
@@ -59,8 +66,40 @@ public class SendReceiverThreadMSP430 implements Runnable {
 	}
 
 
+	private void transmitPassword(byte[] data) {
+		try{
+			// Request to transmit password
+			int i=0;
+			boolean success = false;
+
+			while(!(success || i>1))
+			{
+				sendBslSync(); 				// sendHeader
+				
+				Thread.sleep(200);
+								
+				boolean writeResult = ftdiInterface.write(data, 1000);
+				doOutput("Write password: "+writeResult);
+				
+				byte[] readResult = ftdiInterface.read(5000);
+				doOutput("Answer password:");
+				for (byte b : readResult) {
+					doOutput("0x"+Integer.toHexString(b & 0xFF)+",");
+				}
+				if(readResult != null && readResult.length > 0)
+				{
+					if((readResult[0] & 0xFF) == 0x90)
+						break;
+				}
+				i++;
+			}
+		}catch(InterruptedException e)
+		{
+			doOutput(e.getMessage());
+		}
+	}
+	
 	private void doMassErase(byte[] data) {
-		ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
 		try{
 			// Request to mass erase
 			int i=0;
@@ -74,21 +113,23 @@ public class SendReceiverThreadMSP430 implements Runnable {
 				Thread.sleep(200);
 								
 				boolean writeResult = ftdiInterface.write(data, 1000);
-				textView.append("Write massErase: "+writeResult+"\n");
+				doOutput("Write massErase: "+writeResult);
 				
 				byte[] readResult = ftdiInterface.read(5000);
-				textView.append("Answer massErase: \n");
+				doOutput("Answer massErase:");
 				for (byte b : readResult) {
-					textView.append("0x"+Integer.toHexString(b & 0xFF)+",");
+					doOutput("0x"+Integer.toHexString(b & 0xFF)+",");
 				}
-				textView.append("\n");
-				if((readResult[0] & 0xFF) == 0x90)
-					break;
+				if(readResult != null && readResult.length > 0)
+				{
+					if((readResult[0] & 0xFF) == 0x90)
+						break;
+				}
 				i++;
 			}
 		}catch(InterruptedException e)
 		{
-			
+			doOutput(e.getMessage());
 		}
 	}
 
@@ -105,21 +146,6 @@ public class SendReceiverThreadMSP430 implements Runnable {
 				return true;
 		}
 		return false;
-	}
-
-	/**
-	 * @return the state
-	 */
-	public synchronized ThreadStates getState() {
-		return state;
-	}
-
-	/**
-	 * @param state
-	 *            the state to set
-	 */
-	public synchronized void setState(ThreadStates state) {
-		this.state = state;
 	}
 
 	private void sendResetSequence(boolean invokeBsl) {
@@ -192,13 +218,13 @@ public class SendReceiverThreadMSP430 implements Runnable {
 				  						  usb_val,
 				  						  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
 		{
-			//textView.append(Integer.toString(-1)+",");
+			//doOutput(Integer.toString(-1)+",");
 			Log.e("ftdi_control","USB controlTransfer operation failed.");
 			return -1;
 		}
 		else
 		{
-			//textView.append(Integer.toString(0)+",");
+			//doOutput(Integer.toString(0)+",");
 			return 0;
 		}
 	}
@@ -225,13 +251,13 @@ public class SendReceiverThreadMSP430 implements Runnable {
 				  							  usb_val,
 				  							  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
 		{
-			//textView.append(Integer.toString(-1)+",");
+			//doOutput(Integer.toString(-1)+",");
 			Log.e("ftdi_control","USB controlTransfer operation failed. ");
 			return -1;
 		}
 		else
 		{
-			//textView.append(Integer.toString(0)+",");
+			//doOutput(Integer.toString(0)+",");
 			return 0;
 		}
 		
@@ -261,5 +287,20 @@ public class SendReceiverThreadMSP430 implements Runnable {
 		telosWriteByte((byte)(0x90 | (addr << 1)));
 		telosWriteByte(cmd);
 		telosStop();
+	}
+	
+	private void doOutput(final String msg)
+	{
+		if(this.context == null)
+			return;
+		
+        //do something before you send the message
+		Handler handler = context.getUiHandler();
+    	Bundle data = new Bundle();
+		data.putString(null, msg);
+		Message message = handler.obtainMessage();
+		message.setData(data);
+		
+		handler.sendMessage(message);
 	}
 }
