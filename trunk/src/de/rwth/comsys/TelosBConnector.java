@@ -311,5 +311,93 @@ public class TelosBConnector {
 	public void setPassword(byte[] password) {
 		this.password = password;
 	}
+	
+	/**
+	 * Creates a MSP430 RX Data block packet. 
+	 * SLAU319B.pdf
+	 * RX data block 80 12 n n AL AH n-4 0 D1 D2 ... Dn-4 CKL CKH ACK
+	 * @param data to write must be have even length <= 52 and > 4
+	 * @param startAddress 16-bit address < 1FF
+	 * @return packet to send
+	 */
+	private byte[] getRXDataBlockCommand(byte[] data, short startAddress)
+	{	
+		
+		//check length
+		if(((data.length > 52) || (data.length < 4)) && (data.length % 2 == 1)) return null;
+		
+		// 11 = HEADER, CMD, L1, L2, AL, AH, LL, LH, CKL, CKH, ACK
+		int countOfAllBytes = 11 + data.length;
+		
+				
+		// data to send in short, because of signed bytes problem
+		short[] result = new short[countOfAllBytes];
+		
+		result[0]  = 0x80; 							//HEADER
+		result[1]  = 0x12; 							//CMD
+		result[2]  = (short) (data.length + 4);	 	//L1: Number of bytes consisting of AL through Dn. Restrictions: L1 = L2, L1 < 250, L1 even
+		result[3]  = result[2];						//L2:= L1
+		result[4]  = (byte) startAddress; 			//AL: start address
+		result[5]  = (short) (startAddress >> 8); 	//AH
+		result[6]  = (short) data.length; 			//LL
+		result[7]  = 0x00;							//LH: always 0
+		
+		for(int i = 8; i < result.length - 3; i++)
+		{	
+			result[i] = data[i-8];
+		}
+		
+		result[result.length - 3]  = getCKL(result); 
+		result[result.length - 2]  = getCKH(result); 
+		result[result.length - 1]  = 0x90;  //ACK
+		
+		return ByteConverter.convertShortArrayToByteArray(result);
+	}
+	
+	
+	
+	
+	/**
+	 * Calculates CKL value for a MSP430 packet.
+	 * SLAU319B.pdf
+	 * @param data complete packet with ckl, ckh, ack
+	 * @return ckl
+	 */
+	private short getCKL(short[] data){
+		short ckl = 0;
+		
+		// -3 = without ckl, ckh and ack
+		for(int i=0; i < data.length - 3; i++)
+		{
+			if(i%2 == 0)
+			{
+				ckl ^= data[i];
+			}
+		}
+		
+		return (short) (~ckl);
+		
+	}
+	
+	/**
+	 * Calculates CKH value for a MSP430 packet.
+	 * SLAU319B.pdf
+	 * @param data complete packet with ckl, ckh, ack
+	 * @return ckh
+	 */
+	private short getCKH(short[] data){
+		short ckh = 0;
+		
+		// -3 = without ckl, ckh and ack
+		for(int i=0; i < data.length - 3; i++)
+		{
+			if(i%2 == 1)
+			{
+				ckh ^= data[i];
+			}
+		}
+		
+		return (short) (~ckh);
+	}
 
 }
