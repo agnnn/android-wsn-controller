@@ -76,4 +76,22 @@ public class ByteConverter {
 	{
 		return (short)(((~byteVal) + 1) & 0xFFFF);
 	}
+	
+	
+	/**
+	 * Converts an array of short to an array of bytes.
+	 * @param data
+	 * @return
+	 */
+	static byte[] convertShortArrayToByteArray(short[] data)
+	{
+		byte[] result = new byte[data.length];	
+		
+		for(int i = 0; i < data.length; i++)
+		{
+			result[i]= (byte) (data[i] & 0xFF);
+		}
+		
+		return result;
+	}		
 }
