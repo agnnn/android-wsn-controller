@@ -27,7 +27,7 @@ import de.rwth.comsys.Enums.ThreadStates;
 public class SendReceiverThreadMSP430 extends Thread {
 	private FTDI_Interface ftdiInterface;
 	private ArrayList<MSP430Command> commands;
-	public int timeout = 4000;
+	public int timeout = 2000;
 	private AndroidWSNControllerActivity context;
 
 	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface) {
@@ -57,6 +57,10 @@ public class SendReceiverThreadMSP430 extends Thread {
 				transmitPassword(cmd.getData());
 				break;
 			}
+			case FLASH:
+				flash(cmd.getRecords());
+				break;
+				
 			}
 		}
 	}
@@ -100,6 +104,98 @@ public class SendReceiverThreadMSP430 extends Thread {
 		{
 			doOutput(e.getMessage());
 		}
+	}
+	
+	/*
+	 * Sends a loaded ihex file to device.
+	 * The ihex file is represented by Record.java.
+	 */
+	private void flash(ArrayList<Record> records) {
+		
+		if(records == null)
+		{
+			doOutput("Flashing: Records == null !");
+			return;
+		}
+		
+		doOutput("Flashing...");
+		
+		int maxRetrys = 5;
+		int currentRetry = 0;
+		
+		boolean successfullySend;
+		boolean successfullyWritten;
+		Record currentRecord;
+		byte[] data;
+		byte[] readResult;
+		
+		// prepare records
+		records = Record.getOnlyDataRecords(records);
+		
+		// is there anything to transmit?
+		while(!records.isEmpty())
+		{	
+			// get and remove first record
+			currentRecord = records.get(0);
+			records.remove(0);
+			
+			successfullySend = false;
+			successfullyWritten = false;
+			currentRetry = 0;
+			
+			// transmit 
+			try{
+				// retransmit necessary?
+				while(!successfullySend && (maxRetrys>currentRetry))
+				{	
+					// send sync sequence
+					sendBslSync(); 				
+					
+					// wait a short moment
+					Thread.sleep(10);
+					
+					// build message
+					data = TelosBConnector.getRXDataBlockCommand(currentRecord.getData(), currentRecord.getAddressHighByte(), currentRecord.getAddressLowByte());
+					
+					// send message
+					doOutput("Writting to address 0x"+Integer.toHexString(currentRecord.getAddressHighByte())+Integer.toHexString(currentRecord.getAddressLowByte()));
+					successfullyWritten = ftdiInterface.write(data, 2000);
+					
+					// ack receiving
+					if(successfullyWritten)
+					{	
+						readResult = ftdiInterface.read(2000);
+											
+						if(readResult != null && readResult.length > 0)
+						{	
+							// is ack?
+							if((readResult[0] & 0xFF) == 0x90)
+							{	
+								doOutput("OK");
+								successfullySend = true;
+							}
+						}
+					}
+					
+					// retry limiter
+					currentRetry++;
+				}
+			}
+			catch(InterruptedException e)
+			{
+				doOutput(e.getMessage());
+			}
+			
+			// no successfully transmission and max count of retries reached ?
+			if((!successfullySend) && (maxRetrys==currentRetry) )
+			{	
+				doOutput("Abort!");
+				return;
+			}
+		}
+		
+		doOutput("Succesfully flashed!");
+		sendResetSequence(true); 
 	}
 	
 	private void doMassErase(byte[] data) {
@@ -266,6 +362,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		
 	}
 
+	
 	private void telosWriteBit(boolean bit)
 	{
 		try
