@@ -2,6 +2,7 @@ package de.rwth.comsys;
 
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
+import java.util.Formatter;
 
 import android.widget.TextView;
 
@@ -93,5 +94,7 @@ public class ByteConverter {
 		}
 		
 		return result;
-	}		
+	}	
+	
+	
 }

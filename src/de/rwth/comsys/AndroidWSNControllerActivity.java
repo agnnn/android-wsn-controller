@@ -10,13 +10,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -44,6 +41,8 @@ public class AndroidWSNControllerActivity extends Activity {
 		myButtonConnect.setOnClickListener(buttonConnectListener);
 		Button myButtonSend = (Button) findViewById(R.id.button1);
 		myButtonSend.setOnClickListener(buttonSendListener);
+		Button myButtonLoad = (Button) findViewById(R.id.button2);
+		myButtonLoad.setOnClickListener(buttonLoadListener);
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
 
@@ -101,6 +100,17 @@ public class AndroidWSNControllerActivity extends Activity {
 		}
 	};
 
+	// OnClickListener sends a packet to mDevice
+	private OnClickListener buttonLoadListener = new OnClickListener() {
+		public void onClick(View v) {
+			HexLoader test = new HexLoader();
+			Record.getStartAddress(test.getRecords());
+			textView.append("Loaded lines: "+test.getRecords().size());
+		}
+	};
+	
+	
+	
 	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
