@@ -4,21 +4,11 @@
 package de.rwth.comsys;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
-import android.widget.TextView;
-
 import de.rwth.comsys.Enums.FTDI_Constants;
-import de.rwth.comsys.Enums.MSP430_Command;
-import de.rwth.comsys.Enums.ThreadStates;
 
 /**
  * @author Christian
@@ -27,7 +17,7 @@ import de.rwth.comsys.Enums.ThreadStates;
 public class SendReceiverThreadMSP430 extends Thread {
 	private FTDI_Interface ftdiInterface;
 	private ArrayList<MSP430Command> commands;
-	public int timeout = 2000;
+	public int timeout = 3000;
 	private AndroidWSNControllerActivity context;
 
 	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface) {
@@ -44,23 +34,34 @@ public class SendReceiverThreadMSP430 extends Thread {
 	public void run() {
 		for (MSP430Command cmd : commands) {
 			doOutput("pollCmd: "+cmd.getCommand().toString());
-			switch (cmd.getCommand()) {
-			case MASS_ERASE: {
-				doMassErase(cmd.getData());
-				break;
-			}
-			case SET_PASSWORD: {
-				setPassword(cmd.getData());
-				break;
-			}
-			case TRANSMIT_PASSWORD: {
-				transmitPassword(cmd.getData());
-				break;
-			}
-			case FLASH:
-				flash(cmd.getRecords());
-				break;
+			switch (cmd.getCommand())
+			{
+				case MASS_ERASE:
+					doMassErase(cmd.getData());
+					break;
 				
+				case SET_PASSWORD: 
+					setPassword(cmd.getData());
+					break;
+				
+				case TRANSMIT_PASSWORD: 
+					transmitPassword(cmd.getData());
+					break;
+				
+				case FLASH:
+					flash(cmd.getRecords());
+					break;
+					
+				case LOAD_PC:
+					loadPC(cmd.getStartAddress());
+					break;
+				
+				case CHANGE_BAUDRATE:
+					loadPC(cmd.getStartAddress());
+					break;
+				
+				default: break;
+					
 			}
 		}
 	}
@@ -106,7 +107,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		}
 	}
 	
-	/*
+	/**
 	 * Sends a loaded ihex file to device.
 	 * The ihex file is represented by Record.java.
 	 */
@@ -155,7 +156,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					Thread.sleep(10);
 					
 					// build message
-					data = TelosBConnector.getRXDataBlockCommand(currentRecord.getData(), currentRecord.getAddressHighByte(), currentRecord.getAddressLowByte());
+					data = TelosBConnector.createRXDataBlockCommand(currentRecord.getData(), currentRecord.getAddressHighByte(), currentRecord.getAddressLowByte());
 					
 					// send message
 					doOutput("Writting to address 0x"+Integer.toHexString(currentRecord.getAddressHighByte())+Integer.toHexString(currentRecord.getAddressLowByte()));
@@ -195,7 +196,82 @@ public class SendReceiverThreadMSP430 extends Thread {
 		}
 		
 		doOutput("Succesfully flashed!");
-		sendResetSequence(true); 
+		
+	}
+	
+	/**
+	 * Sends a LoadPC command with specified startAddress to device .
+	 * 
+	 * @param  16-bit startAddress
+	 */
+	private void loadPC(int startAddress) {
+		
+		int maxRetrys = 5;
+		int currentRetry = 0;
+		
+		boolean successfullySend =  false;
+		boolean successfullyWritten = false;
+		
+		byte[] data;
+		byte[] readResult;
+		
+		// prepare startAddress
+		short startAddressHighByte = (short) ((startAddress >> 8) & 0xFF);
+		short startAddressLowByte = (short) (startAddress & 0xFF);
+		doOutput("StartAdress: "+ startAddressHighByte +"   "+startAddressLowByte );
+		// transmit 
+		try{
+			// retransmit necessary?
+			while(!successfullySend && (maxRetrys>currentRetry))
+			{	
+				// send sync sequence
+				sendBslSync(); 				
+				
+				// wait a short moment
+				Thread.sleep(10);
+				
+				// build message
+				data = TelosBConnector.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
+				
+				// send message
+				doOutput("Load PC at address 0x"+Integer.toHexString(startAddressHighByte)+Integer.toHexString(startAddressLowByte));
+				successfullyWritten = ftdiInterface.write(data, 2000);
+				
+				// ack receiving
+				if(successfullyWritten)
+				{	
+					readResult = ftdiInterface.read(1000);
+										
+					if(readResult != null && readResult.length > 0)
+					{	
+						// is ack?
+						if((readResult[0] & 0xFF) == 0x90)
+						{	
+							doOutput("OK");
+							successfullySend = true;
+						}
+					}
+				}
+			
+				// retry limiter
+				currentRetry++;
+			}
+		}
+		catch(InterruptedException e)
+		{
+			doOutput(e.getMessage());
+		}
+		
+		// no successfully transmission and max count of retries reached ?
+		if((!successfullySend) && (maxRetrys==currentRetry) )
+		{	
+			doOutput("Abort!");
+			return;
+		}
+		
+		
+		doOutput("Succesfully moved program counter vector!");
+		
 	}
 	
 	private void doMassErase(byte[] data) {
@@ -236,13 +312,17 @@ public class SendReceiverThreadMSP430 extends Thread {
 	private boolean sendBslSync() {
 		byte data[] = new byte[1];
 		data[0] = (byte)0x80;
-		
+		doOutput("BSLSync...");
 		ftdiInterface.write(data, timeout);
 		byte[] resp = ftdiInterface.read(timeout);
 		if(resp.length > 0)
 		{
 			if(resp[0] == 0x90)
+			{
+				doOutput("BSLSync ACK");
 				return true;
+			}
+				
 		}
 		return false;
 	}

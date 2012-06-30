@@ -67,12 +67,15 @@ public class TelosBConnector {
 		byte[] data = new byte[available];
 		int readBytes = filein.read(data);*/
 		
+		ArrayList<Record> records =  (new HexLoader()).getRecords();
+		
 		if(mDeviceConnection != null)
 		{
 			commandList.clear();
 			commandList.add(new MSP430Command(MSP430_Command.MASS_ERASE,getMassEraseCommand()));
 			commandList.add(new MSP430Command(MSP430_Command.TRANSMIT_PASSWORD, getReceivePasswordCommand(this.password)));
-			commandList.add(new MSP430Command(MSP430_Command.FLASH, (new HexLoader()).getRecords()));
+			commandList.add(new MSP430Command(MSP430_Command.FLASH, records));
+			commandList.add(new MSP430Command(MSP430_Command.LOAD_PC, Record.getStartAddress(records)));
 			startExecutionThread();
 		}
 		else
@@ -149,7 +152,7 @@ public class TelosBConnector {
 	 */
 	public void connectDevice(UsbDevice device) 
 	{
-		textView.append("setDevice " + device+"\n");
+		//textView.append("setDevice " + device+"\n");
 		if (device.getInterfaceCount() != 1) {
 			textView.append("Could not find interface!\n");
 			return;
@@ -157,7 +160,7 @@ public class TelosBConnector {
 
 		mUSBInterface = device.getInterface(0);
 
-		// MSP430 has 2 endpoints (SLAU319B.pdf, paragraph 1.5)
+		// FTDI  has 2 endpoints 
 		if (mUSBInterface.getEndpointCount() != 2) {
 			textView.append("Can't find all endpoints!\n");
 			return;
@@ -316,11 +319,12 @@ public class TelosBConnector {
 	 * Creates a MSP430 RX Data block packet. 
 	 * SLAU319B.pdf
 	 * RX data block 80 12 n n AL AH n-4 0 D1 D2 ... Dn-4 CKL CKH ACK
-	 * @param data to write must be have even length <= 52 and > 4
-	 * @param startAddress 16-bit address < 1FF
+	 * @param data to write must be have even length <= 52 and > 4 
+	 * @param startAddressHighByte
+	 * @param startAddressLowByte
 	 * @return packet to send
 	 */
-	public static byte[] getRXDataBlockCommand(short[] data, short startAddressHighByte, short startAddressLowByte)
+	public static byte[] createRXDataBlockCommand(short[] data, short startAddressHighByte, short startAddressLowByte)
 	{	
 		
 		//check length
@@ -354,6 +358,74 @@ public class TelosBConnector {
 		return ByteConverter.convertShortArrayToByteArray(result);
 	}
 	
+	/**
+	 * Sends a MSP430 TX DATA BLOCK command, which invokes the MSP430 to respond with
+	 * data from startAddress until startAddress + length (16-bit blocks).
+	 * SLAU319B.pdf
+	 * TX DATA BLOCK 80 14 04 04 AL AH LL LH CKL CKH ACK
+	 * @param startAddressHighByte 
+	 * @param startAddressLowByte
+	 * @param length How many 16-bit blocks shall be read? 
+	 * TODO Limited to 20 blocks (FTDI endpoint 64 byte)? , 16 best!
+	 * @return
+	 */
+	public static byte[] createTXDataBlockCommand(short startAddressHighByte, short startAddressLowByte, short length)
+	{	
+		// check length
+		if(length > 20 || length < 1) return null;
+		
+		// 11 = HEADER, CMD, L1, L2, AL, AH, LL, LH, CKL, CKH, ACK
+		int countOfAllBytes = 11;
+		
+				
+		// data to send in short, because of signed bytes problem
+		short[] result = new short[countOfAllBytes];
+		
+		result[0]  = 0x80; 							//HEADER
+		result[1]  = 0x14; 							//CMD
+		result[2]  = 04;	 						//L1: Number of bytes consisting of AL through Dn. Restrictions: L1 = L2, L1 < 250, L1 even
+		result[3]  = result[2];						//L2:= L1
+		result[4]  = startAddressLowByte; 			//AL: start address
+		result[5]  = startAddressHighByte; 			//AH
+		result[6]  = length; 						//LL
+		result[7]  = 0x00;							//LH: always 0
+		result[8]  = getCKL(result); 
+		result[9]  = getCKH(result); 
+		result[10]  = 0x90;  						//ACK
+		
+		return ByteConverter.convertShortArrayToByteArray(result);
+	}
+	
+	/**
+	 * Creates a MSP430 LOAD PC packet. 
+	 * SLAU319B.pdf
+	 * Load PC 80 1A 04 04 AL AH x x CKL CKH ACK
+	 * @param data to write must be have even length <= 52 and > 4
+	 * @param startAddress 16-bit address < 1FF
+	 * @return packet to send
+	 */
+	public static byte[] createLoadPCCommand(short startAddressHighByte, short startAddressLowByte)
+	{	
+		// HEADER, CMD, L1, L2, AL, AH, LL, LH, CKL, CKH, ACK
+		int countOfAllBytes = 11; 
+				
+		// data to send in short, because of signed bytes problem
+		short[] result = new short[countOfAllBytes];
+		
+		result[0]  = 0x80; 							//HEADER
+		result[1]  = 0x1A; 							//CMD
+		result[2]  = 0x04;	 						//L1: Number of bytes consisting of AL through Dn. Restrictions: L1 = L2, L1 < 250, L1 even
+		result[3]  = result[2];						//L2:= L1
+		result[4]  = startAddressLowByte; 			//AL: start address
+		result[5]  = startAddressHighByte; 			//AH
+		result[6]  = 0x00; 							//LL any data
+		result[7]  = 0x00;							//LH: always 0
+		result[8]  = getCKL(result); 
+		result[9]  = getCKH(result); 
+		result[10]  = 0x90;  //ACK
+		
+		return ByteConverter.convertShortArrayToByteArray(result);
+	}
 	
 	
 	

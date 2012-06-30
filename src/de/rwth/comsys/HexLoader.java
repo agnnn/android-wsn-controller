@@ -19,6 +19,7 @@ import android.util.Log;
  */
 public class HexLoader {
 	
+	
 	private ArrayList<Record> records = new ArrayList<Record>();
 	
 
@@ -208,6 +209,6 @@ public class HexLoader {
 	public synchronized ArrayList<Record> getRecords() {
 		return records;
 	}
-	
+
 	
 }
