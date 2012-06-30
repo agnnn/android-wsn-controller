@@ -274,6 +274,84 @@ public class SendReceiverThreadMSP430 extends Thread {
 		
 	}
 	
+	/**
+	 * TODO
+	 * Sends a TX DATA BLOCK command with specified startAddress to device.
+	 * Used to read from memory.
+	 * @param length How many 16-bit blocks shall be read?
+	 * @param 16-bit startAddress
+	 * @return received data from this startAddress
+	 
+	private byte[] loadPC(int startAddress, short length) {
+		
+		int maxRetrys = 5;
+		int currentRetry = 0;
+		
+		boolean successfullySend =  false;
+		boolean successfullyWritten = false;
+		
+		byte[] data;
+		byte[] readResult;
+		
+		// prepare startAddress
+		short startAddressHighByte = (short) ((startAddress >> 8) & 0xFF);
+		short startAddressLowByte = (short) (startAddress & 0xFF);
+		doOutput("StartAdress: "+ startAddressHighByte +"   "+startAddressLowByte );
+		// transmit 
+		try{
+			// retransmit necessary?
+			while(!successfullySend && (maxRetrys>currentRetry))
+			{	
+				// send sync sequence
+				sendBslSync(); 				
+				
+				// wait a short moment
+				Thread.sleep(10);
+				
+				// build message
+				data = TelosBConnector.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
+				
+				// send message
+				doOutput("Load PC at address 0x"+Integer.toHexString(startAddressHighByte)+Integer.toHexString(startAddressLowByte));
+				successfullyWritten = ftdiInterface.write(data, 2000);
+				
+				// ack receiving
+				if(successfullyWritten)
+				{	
+					readResult = ftdiInterface.read(1000);
+										
+					if(readResult != null && readResult.length > 0)
+					{	
+						// is ack?
+						if((readResult[0] & 0xFF) == 0x90)
+						{	
+							doOutput("OK");
+							successfullySend = true;
+						}
+					}
+				}
+			
+				// retry limiter
+				currentRetry++;
+			}
+		}
+		catch(InterruptedException e)
+		{
+			doOutput(e.getMessage());
+		}
+		
+		// no successfully transmission and max count of retries reached ?
+		if((!successfullySend) && (maxRetrys==currentRetry) )
+		{	
+			doOutput("Abort!");
+			return;
+		}
+		
+		
+		doOutput("Succesfully moved program counter vector!");
+		
+	}*/
+	
 	private void doMassErase(byte[] data) {
 		try{
 			// Request to mass erase
