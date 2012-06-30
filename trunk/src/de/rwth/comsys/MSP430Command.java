@@ -8,31 +8,37 @@ public class MSP430Command {
 	private MSP430_Command command;
 	private byte[] data;
 	private int startAddress;
+	private short length;
 	
 	private ArrayList<Record> records;
 	
 	
-	public MSP430Command(MSP430_Command command, byte[] data, int startAddress, ArrayList<Record> records ) {
+	public MSP430Command(MSP430_Command command, byte[] data, int startAddress, ArrayList<Record> records, short length ) {
 		this.command = command;
 		this.data = data;
 		this.setStartAddress(startAddress);
 		this.records = (records);
+		this.length = length;
 	}
 	
 	public MSP430Command(MSP430_Command command) {
-		this(command, null, 0, null);
+		this(command, null, 0, null, (short) 0);
 	}
 	
 	public MSP430Command(MSP430_Command command, byte[] data) {
-		this(command, data, 0, null);
+		this(command, data, 0, null, (short) 0);
 	}
 	
 	public MSP430Command(MSP430_Command command, int startAddress) {
-		this(command, null, startAddress, null);
+		this(command, null, startAddress, null, (short) 0);
 	}
 	
 	public MSP430Command(MSP430_Command command, ArrayList<Record> records) {
-		this(command, null, 0, records);
+		this(command, null, 0, records, (short) 0);
+	}
+	
+	public MSP430Command(MSP430_Command command, int startAddress, short length) {
+		this(command, null, startAddress, null, length);
 	}
 	
 	
@@ -95,6 +101,20 @@ public class MSP430Command {
 	 */
 	public void setStartAddress(int startAddress) {
 		this.startAddress = startAddress;
+	}
+
+	/**
+	 * @return the length
+	 */
+	public short getLength() {
+		return length;
+	}
+
+	/**
+	 * @param length the length to set
+	 */
+	public void setLength(short length) {
+		this.length = length;
 	}
 	
 	

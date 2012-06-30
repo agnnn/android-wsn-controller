@@ -391,7 +391,7 @@ public class TelosBConnector {
 		result[7]  = 0x00;							//LH: always 0
 		result[8]  = getCKL(result); 
 		result[9]  = getCKH(result); 
-		result[10]  = 0x90;  						//ACK
+		result[10] = 0x90;  						//ACK
 		
 		return ByteConverter.convertShortArrayToByteArray(result);
 	}
