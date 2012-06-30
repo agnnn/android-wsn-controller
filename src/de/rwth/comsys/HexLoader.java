@@ -53,6 +53,8 @@ public class HexLoader {
 	        {
 	        	handleError(ErrorCodes.HEXLOADER_RECORD_INVALID_START_SEGMENT_ADDRESS_RECORD, "");
 	        }
+	        
+	        // check for end of file record
 				        
 	    } catch (IOException e) {
 	    	handleError(ErrorCodes.HEXLOADER_CANT_LOAD_FILE, iHexFile.toString() + " " + e.toString());

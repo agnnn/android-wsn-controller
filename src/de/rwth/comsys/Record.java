@@ -152,6 +152,30 @@ public class Record
 			return foundRecordOnce;
 		}
 	}
+	
+	/**
+	 * Removes all types of records except DATA_RECORD.
+	 * @param records
+	 * @return DATA_RECORD records
+	 */
+	public static ArrayList<Record> getOnlyDataRecords(ArrayList<Record> records)
+	{	
+		ArrayList<Record> result = new ArrayList<Record>();
+		Record currentRecord = null;
+		
+		for(Iterator<Record> iter = records.iterator(); iter.hasNext();)
+		{
+			currentRecord = iter.next();
+			
+			if(currentRecord.getRecordType().getCode() == RecordTypes.DATA_RECORD.getCode())
+			{
+				result.add(currentRecord);
+			}
+		}
+		
+		return result;
+		
+	}
 
 	/**
 	 * @return the startCode

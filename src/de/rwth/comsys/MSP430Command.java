@@ -1,5 +1,7 @@
 package de.rwth.comsys;
 
+import java.util.ArrayList;
+
 import de.rwth.comsys.Enums.MSP430_Command;
 
 public class MSP430Command {
@@ -7,18 +9,29 @@ public class MSP430Command {
 	private byte[] data;
 	private short startAddress;
 	private short endAddress;
-	public MSP430Command(MSP430_Command command, byte[] data,short startAddress, short endAddress) {
+	private ArrayList<Record> records;
+	
+	
+	public MSP430Command(MSP430_Command command, byte[] data, short startAddress, short endAddress, ArrayList<Record> records ) {
 		this.command = command;
 		this.data = data;
 		this.startAddress = startAddress;
 		this.endAddress = endAddress;
+		this.records = (records);
 	}
+	
 	public MSP430Command(MSP430_Command command) {
-		this(command,null,(short)0,(short)0);
+		this(command,null,(short)0,(short)0, null);
 	}
+	
 	public MSP430Command(MSP430_Command command, byte[] data) {
-		this(command,data,(short)0,(short)0);
+		this(command,data,(short)0,(short)0, null);
 	}
+	
+	public MSP430Command(MSP430_Command command, ArrayList<Record> records) {
+		this(command, null, (short)0, (short)0, records);
+	}
+	
 	/**
 	 * @return the command
 	 */
@@ -66,6 +79,20 @@ public class MSP430Command {
 	 */
 	public void setEndAddress(short endAddress) {
 		this.endAddress = endAddress;
+	}
+
+	/**
+	 * @return the records
+	 */
+	public ArrayList<Record> getRecords() {
+		return records;
+	}
+
+	/**
+	 * @param records the records to set
+	 */
+	public void setRecords(ArrayList<Record> records) {
+		this.records = records;
 	}
 	
 	

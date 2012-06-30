@@ -72,7 +72,7 @@ public class TelosBConnector {
 			commandList.clear();
 			commandList.add(new MSP430Command(MSP430_Command.MASS_ERASE,getMassEraseCommand()));
 			commandList.add(new MSP430Command(MSP430_Command.TRANSMIT_PASSWORD, getReceivePasswordCommand(this.password)));
-			//commandList.add(new MSP430Command(MSP430_Command.FLASH, data, (short)0, (short)0));
+			commandList.add(new MSP430Command(MSP430_Command.FLASH, (new HexLoader()).getRecords()));
 			startExecutionThread();
 		}
 		else
@@ -320,7 +320,7 @@ public class TelosBConnector {
 	 * @param startAddress 16-bit address < 1FF
 	 * @return packet to send
 	 */
-	private byte[] getRXDataBlockCommand(byte[] data, short startAddress)
+	public static byte[] getRXDataBlockCommand(short[] data, short startAddressHighByte, short startAddressLowByte)
 	{	
 		
 		//check length
@@ -337,8 +337,8 @@ public class TelosBConnector {
 		result[1]  = 0x12; 							//CMD
 		result[2]  = (short) (data.length + 4);	 	//L1: Number of bytes consisting of AL through Dn. Restrictions: L1 = L2, L1 < 250, L1 even
 		result[3]  = result[2];						//L2:= L1
-		result[4]  = (byte) startAddress; 			//AL: start address
-		result[5]  = (short) (startAddress >> 8); 	//AH
+		result[4]  = startAddressLowByte; 			//AL: start address
+		result[5]  = startAddressHighByte; 	//AH
 		result[6]  = (short) data.length; 			//LL
 		result[7]  = 0x00;							//LH: always 0
 		
@@ -363,7 +363,7 @@ public class TelosBConnector {
 	 * @param data complete packet with ckl, ckh, ack
 	 * @return ckl
 	 */
-	private short getCKL(short[] data){
+	private static short getCKL(short[] data){
 		short ckl = 0;
 		
 		// -3 = without ckl, ckh and ack
@@ -385,7 +385,7 @@ public class TelosBConnector {
 	 * @param data complete packet with ckl, ckh, ack
 	 * @return ckh
 	 */
-	private short getCKH(short[] data){
+	private static short getCKH(short[] data){
 		short ckh = 0;
 		
 		// -3 = without ckl, ckh and ack
