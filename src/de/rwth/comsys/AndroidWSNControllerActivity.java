@@ -1,5 +1,6 @@
 package de.rwth.comsys;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 
@@ -13,6 +14,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
 import android.view.View;
@@ -103,8 +105,7 @@ public class AndroidWSNControllerActivity extends Activity {
 	// OnClickListener sends a packet to mDevice
 	private OnClickListener buttonLoadListener = new OnClickListener() {
 		public void onClick(View v) {
-			HexLoader test = new HexLoader();
-			Record.getStartAddress(test.getRecords());
+			HexLoader test = new HexLoader(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "WSN" +  File.separator + "main.ihex");
 			textView.append("Loaded lines: "+test.getRecords().size());
 		}
 	};
