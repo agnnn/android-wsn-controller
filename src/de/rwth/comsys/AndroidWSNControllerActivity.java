@@ -94,9 +94,8 @@ public class AndroidWSNControllerActivity extends Activity {
 	private OnClickListener buttonSendListener = new OnClickListener() {
 		public void onClick(View v) {
 			try {
-				telosBConnect.execFlash("myFile");
+				telosBConnect.execFlash((new HexLoader(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "WSN" +  File.separator + "main.ihex")).getRecords());
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				textView.append(e.getMessage() + "\n");
 			}
 		}

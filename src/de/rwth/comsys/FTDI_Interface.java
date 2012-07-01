@@ -173,7 +173,36 @@ public class FTDI_Interface {
 		}
 		return (result == 0);
 	}
-
+	
+	
+	
+	
+	
+	/**
+	 * TODO  Sets the baudrate.
+	 * 
+	 * @return true if success, false if failure the last error can be read with
+	 *         getLastErrorString or getLastError
+	 */
+	public boolean setBaudrate(int baudrate) {
+		int result = 0;
+		result = deviceConnection.controlTransfer(
+				FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE,
+				FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 0x4138,
+				FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		if (result == 0) {
+			result = deviceConnection.controlTransfer(
+					FTDI_Constants.FTDI_DEVICE_IN_REQTYPE,
+					FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 0x4138,
+					FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+			if (result != 0)
+				lastError = FtdiInterfaceError.SET_BAUDRATE_IN_FAILED;
+		} else {
+			lastError = FtdiInterfaceError.SET_BAUDRATE_OUT_FAILED;
+		}
+		return (result == 0);
+	}
+	
 	/**
 	 * Resets the usb device
 	 * 

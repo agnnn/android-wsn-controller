@@ -1,6 +1,6 @@
 package de.rwth.comsys.Enums;
 
-public enum MSP430_Command {
+public enum MSP430_Commands {
 	MASS_ERASE, 
 	SET_PASSWORD, 
 	BSL_SYNC, 
@@ -8,5 +8,6 @@ public enum MSP430_Command {
 	TRANSMIT_PASSWORD,
 	FLASH,
 	LOAD_PC,
-	CHANGE_BAUDRATE;
+	CHANGE_BAUDRATE,
+	TX_BSL_VERSION;
 }
