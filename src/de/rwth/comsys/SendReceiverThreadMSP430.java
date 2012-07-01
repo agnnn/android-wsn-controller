@@ -7,15 +7,14 @@ import java.util.ArrayList;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.util.Log;
+import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
 import de.rwth.comsys.Enums.FTDI_Constants;
-import de.rwth.comsys.Enums.MSP430Baudrates;
 import de.rwth.comsys.Enums.MSP430Variants;
 
 /**
  * Used to communicate with the device without freezing the GUI.
  * Executes different commands which are stored in "ArrayList<MSP430Command> commands" . 
- * @author Christian
+ * @author Christian & Stephan
  * 
  */
 public class SendReceiverThreadMSP430 extends Thread {
@@ -23,6 +22,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 	private ArrayList<MSP430Command> commands;
 	public int timeout = 3000;
 	private AndroidWSNControllerActivity context;
+	 
 
 	
 	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface) {
@@ -41,7 +41,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 			switch (cmd.getCommand())
 			{
 				case MASS_ERASE:
-					doMassErase(cmd.getData());
+					doMassErase();
 					break;
 				
 				case SET_PASSWORD: 
@@ -61,7 +61,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					break;
 				
 				case CHANGE_BAUDRATE:
-					//TODO
+					changeBaudrate(cmd.getBaudrate(), cmd.getVariant());
 					break;
 				
 				case TX_BSL_VERSION:
@@ -292,17 +292,24 @@ public class SendReceiverThreadMSP430 extends Thread {
 	/**
 	 * Sends a CHANGE BAUDRATE command for a MSP430 device.
 	 * Get parameters by TX BSL Version command.
-	 * TODO Succeeding work: change Ftdi_Interface baudrate 
+	 * Changes Ftdi_Interface baudrate. 
 	 * @param baudrate
 	 * @param variant
 	 */
-	private boolean changeBaudrate(MSP430Baudrates baudrate, MSP430Variants variant) {
+	private boolean changeBaudrate(FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variants variant) {
+		
+		if(baudrate == null || variant == null)
+		{
+			doOutput("changeBaudrate: wrong input");
+			return false;
+		}
 		
 		int maxRetrys = 5;
 		int currentRetry = 0;
 		
 		boolean successfullySend =  false;
 		boolean successfullyWritten = false;
+		boolean successfullyChangedBaudrateOfFTDI =  false;
 		
 		byte[] data;
 		byte[] readResult;
@@ -366,10 +373,25 @@ public class SendReceiverThreadMSP430 extends Thread {
 			doOutput("Abort!");
 			return false;
 		}
+				
+		doOutput("Succesfully changed baudrate of MSP430!\nChanging baudrate of FTDI...");
 		
 		
-		doOutput("Succesfully changed baudrate!");
-		return true;
+		// change baudrate of ftdi
+		currentRetry = 0;
+		while(!successfullyChangedBaudrateOfFTDI && (maxRetrys>currentRetry))
+		{	
+			successfullyChangedBaudrateOfFTDI = ftdiInterface.setBaudrate(baudrate);
+		}
+		
+		if((!successfullyChangedBaudrateOfFTDI) && (maxRetrys==currentRetry) )
+		{	
+			doOutput("Abort!");
+			return false;
+		}
+		
+		//TODO ???ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
+		return successfullyChangedBaudrateOfFTDI ;
 		
 	}
 	
@@ -457,7 +479,21 @@ public class SendReceiverThreadMSP430 extends Thread {
 		*/
 	}
 	
-	private void doMassErase(byte[] data) {
+	/**
+	 * TODO
+	 * 
+	 */
+	private void requestBSLVersion()
+	{
+		
+	}
+	
+	/**
+	 * Sends a mass erase command,
+	 * which erases the entire flash memory area.
+	 * 
+	 */
+	private void doMassErase() {
 		try{
 			// Request to mass erase
 			int i=0;
@@ -470,7 +506,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 				
 				Thread.sleep(200);
 								
-				boolean writeResult = ftdiInterface.write(data, 1000);
+				boolean writeResult = ftdiInterface.write(MSP430PacketFactory.createMassEraseCommand(), 1000);
 				doOutput("Write massErase: "+writeResult);
 				
 				byte[] readResult = ftdiInterface.read(5000);
@@ -535,9 +571,9 @@ public class SendReceiverThreadMSP430 extends Thread {
 	}
 	
 	private void telosStop() {
-		setDTR(true);
-		setRTS(false);
-		setDTR(false);
+		ftdiInterface.setDTR(true);
+		ftdiInterface.setRTS(false);
+		ftdiInterface.setDTR(false);
 	}
 
 	private void telosWriteByte(byte dataByte) {
@@ -553,89 +589,24 @@ public class SendReceiverThreadMSP430 extends Thread {
 	}
 
 	private void telosStart() {
-		setDTR(false);
-		setRTS(false);
-		setDTR(true);
+		ftdiInterface.setDTR(false);
+		ftdiInterface.setRTS(false);
+		ftdiInterface.setDTR(true);
 	}
 	
-	/**
-	 * Sets the dtr.
-	 *
-	 * @param dtr: DTR setting. Can only be SIO_SET_DTR_HIGH or SIO_SET_DTR_LOW.
-	 * @return 0: Everything is OK.
-	 *  -1: USB controlTransfer method failed.
-	 *  -2: input value cannot be recognized.
-	 */
-	private int setDTR(boolean state)
-	{
-		short usb_val;
-		
-		if (state)
-	        usb_val = FTDI_Constants.SIO_SET_DTR_HIGH;
-	    else
-	        usb_val = FTDI_Constants.SIO_SET_DTR_LOW;
-		
-		if (ftdiInterface.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
-				  						  FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST, 
-				  						  usb_val,
-				  						  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
-		{
-			//doOutput(Integer.toString(-1)+",");
-			Log.e("ftdi_control","USB controlTransfer operation failed.");
-			return -1;
-		}
-		else
-		{
-			//doOutput(Integer.toString(0)+",");
-			return 0;
-		}
-	}
 	
-	/**
-	 * Sets the rts.
-	 *
-	 * @param rts: the RTS setting. Can only be SIO_SET_RTS_HIGH or SIO_SET_RTS_LOW.
-	 * @return 0: Everything is OK.
-	 *  -1: USB controlTransfer method failed.
-	 *  -2: input value cannot be recognized.
-	 */
-	private int setRTS(boolean state)
-	{
-		short usb_val;
-		
-		if (state)
-	        usb_val = FTDI_Constants.SIO_SET_RTS_HIGH;
-	    else
-	        usb_val = FTDI_Constants.SIO_SET_RTS_LOW;
-		
-		if (ftdiInterface.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
-				  							  FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST, 
-				  							  usb_val,
-				  							  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
-		{
-			//doOutput(Integer.toString(-1)+",");
-			Log.e("ftdi_control","USB controlTransfer operation failed. ");
-			return -1;
-		}
-		else
-		{
-			//doOutput(Integer.toString(0)+",");
-			return 0;
-		}
-		
-	}
 
 	
 	private void telosWriteBit(boolean bit)
 	{
 		try
 		{
-			setRTS(true);
-			setDTR(!bit);
+			ftdiInterface.setRTS(true);
+			ftdiInterface.setDTR(!bit);
 			Thread.sleep(0,2);
-			setRTS(false);
+			ftdiInterface.setRTS(false);
 			Thread.sleep(0,1);
-			setRTS(true);
+			ftdiInterface.setRTS(true);
 		} 
 		catch (InterruptedException e)
 		{

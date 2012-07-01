@@ -4,12 +4,14 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
 
-import de.rwth.comsys.Enums.FTDI232BM_Baudrates;
+
+import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
+
 import de.rwth.comsys.Enums.FTDI_Constants;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
-import android.widget.TextView;
+import android.util.Log;
 
 /**
  * Establishes and manages connection between FTDI and Android.
@@ -22,10 +24,10 @@ public class FTDI_Interface {
 	private FtdiInterfaceError lastError;
 	private UsbEndpoint sendEndpoint;
 	private UsbEndpoint receiveEndpoint;
-	private int maxSendPacketSize;
 	private int maxReceivePacketSize;
-	private FTDI232BM_Baudrates baudrate;
+	private FTDI232BM_Matching_MSP430_Baudrates baudrate;
 	
+	@SuppressWarnings("unused")
 	private FTDI_Interface(){};
 	
 	/**
@@ -52,10 +54,10 @@ public class FTDI_Interface {
 		this.sendEndpoint = sendEndpoint;
 		this.receiveEndpoint = receiveEndpoint;
 		this.deviceConnection = deviceConnection;
-		this.maxSendPacketSize = sendEndpoint.getMaxPacketSize();
+		sendEndpoint.getMaxPacketSize();
 		this.maxReceivePacketSize = receiveEndpoint.getMaxPacketSize();
 		
-		baudrate = FTDI232BM_Baudrates.FTDI232BM_BAUDRATE_9600;
+		baudrate = FTDI232BM_Matching_MSP430_Baudrates.BAUDRATE_9600;
 	}
 
 	/**
@@ -194,7 +196,7 @@ public class FTDI_Interface {
 	 * @return true if success, false if failure the last error can be read with
 	 *         getLastErrorString or getLastError
 	 */
-	public boolean setBaudrate(FTDI232BM_Baudrates baudrate) {
+	public boolean setBaudrate(FTDI232BM_Matching_MSP430_Baudrates baudrate) {
 		int result = 0;
 		// send change
 		result = deviceConnection.controlTransfer(
@@ -266,6 +268,8 @@ public class FTDI_Interface {
 			long curTime;
 			byte[] buffer = new byte[maxReceivePacketSize];
 
+			
+			// read within timeout or end of stream
 			do {
 				curRead = deviceConnection.bulkTransfer(receiveEndpoint,
 						buffer, buffer.length, timeout);
@@ -283,13 +287,8 @@ public class FTDI_Interface {
 
 				curTime = new Date().getTime();
 				Thread.sleep(500);
-			} while ((curTime - startTime < timeout) && (curRead != -1)); // read
-																			// within
-																			// timeout
-																			// or
-																			// end
-																			// of
-																			// stream
+			} while ((curTime - startTime < timeout) && (curRead != -1)); 
+			
 
 		} catch (Exception e) {
 			lastError = FtdiInterfaceError.DATA_READ_THREAD_INTERUPT;
@@ -330,19 +329,87 @@ public class FTDI_Interface {
 	}
 
 	
-	public int controlTransfer(int ftdiDeviceOutReqtype,
+
+	/**public int controlTransfer(int ftdiDeviceOutReqtype,
 			int sioSetModemCtrlRequest, short usb_val, int interfaceNum,
 			byte[] data, int length, int timeout) {
 
 		return (deviceConnection.controlTransfer(ftdiDeviceOutReqtype,
 				sioSetModemCtrlRequest, usb_val, interfaceNum, data, length,
 				timeout));
-	}
+	}*/
 
 	/**
 	 * @return the baudrate
 	 */
-	public FTDI232BM_Baudrates getBaudrate() {
+	public FTDI232BM_Matching_MSP430_Baudrates getBaudrate() {
 		return baudrate;
+	}
+	
+	/**
+	 * Sets the dtr.
+	 *
+	 * @param dtr: DTR setting. Can only be SIO_SET_DTR_HIGH or SIO_SET_DTR_LOW.
+	 * @return 0: Everything is OK.
+	 *  -1: USB controlTransfer method failed.
+	 *  -2: input value cannot be recognized.
+	 */
+	public int setDTR(boolean state)
+	{
+		short usb_val;
+		
+		if (state)
+	        usb_val = FTDI_Constants.SIO_SET_DTR_HIGH;
+	    else
+	        usb_val = FTDI_Constants.SIO_SET_DTR_LOW;
+		
+		if (deviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
+				  						  FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST, 
+				  						  usb_val,
+				  						  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
+		{
+			
+			Log.e("ftdi_control","USB controlTransfer operation failed.");
+			return -1;
+		}
+		else
+		{
+			
+			return 0;
+		}
+	}
+	
+	/**
+	 * Sets the rts.
+	 *
+	 * @param rts: the RTS setting. Can only be SIO_SET_RTS_HIGH or SIO_SET_RTS_LOW.
+	 * @return 0: Everything is OK.
+	 *  -1: USB controlTransfer method failed.
+	 *  -2: input value cannot be recognized.
+	 */
+	public int setRTS(boolean state)
+	{
+		short usb_val;
+		
+		if (state)
+	        usb_val = FTDI_Constants.SIO_SET_RTS_HIGH;
+	    else
+	        usb_val = FTDI_Constants.SIO_SET_RTS_LOW;
+		
+		if (deviceConnection.controlTransfer(FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE, 
+				  							  FTDI_Constants.SIO_SET_MODEM_CTRL_REQUEST, 
+				  							  usb_val,
+				  							  FTDI_Constants.INTERFACE_ANY, null, 0, 2000) != 0)
+		{
+			
+			Log.e("ftdi_control","USB controlTransfer operation failed. ");
+			return -1;
+		}
+		else
+		{
+			
+			return 0;
+		}
+		
 	}
 }
