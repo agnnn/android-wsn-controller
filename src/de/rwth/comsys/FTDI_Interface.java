@@ -4,12 +4,19 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
 
+import de.rwth.comsys.Enums.FTDI232BM_Baudrates;
 import de.rwth.comsys.Enums.FTDI_Constants;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.widget.TextView;
 
+/**
+ * Establishes and manages connection between FTDI and Android.
+ * Thanks to : http://code.google.com/p/android-ftdi-usb2serial-driver-package/
+ * @author Christian & Stephan
+ *
+ */
 public class FTDI_Interface {
 	private UsbDeviceConnection deviceConnection;
 	private FtdiInterfaceError lastError;
@@ -17,7 +24,10 @@ public class FTDI_Interface {
 	private UsbEndpoint receiveEndpoint;
 	private int maxSendPacketSize;
 	private int maxReceivePacketSize;
-
+	private FTDI232BM_Baudrates baudrate;
+	
+	private FTDI_Interface(){};
+	
 	/**
 	 * Create a new FTDI_Interface instance to connect to a certain device with
 	 * a ftdi chip
@@ -44,6 +54,8 @@ public class FTDI_Interface {
 		this.deviceConnection = deviceConnection;
 		this.maxSendPacketSize = sendEndpoint.getMaxPacketSize();
 		this.maxReceivePacketSize = receiveEndpoint.getMaxPacketSize();
+		
+		baudrate = FTDI232BM_Baudrates.FTDI232BM_BAUDRATE_9600;
 	}
 
 	/**
@@ -175,31 +187,38 @@ public class FTDI_Interface {
 	}
 	
 	
-	
-	
-	
 	/**
-	 * TODO  Sets the baudrate.
+	 * Sets the baudrate.
 	 * 
+	 * @param baudrate
 	 * @return true if success, false if failure the last error can be read with
 	 *         getLastErrorString or getLastError
 	 */
-	public boolean setBaudrate(int baudrate) {
+	public boolean setBaudrate(FTDI232BM_Baudrates baudrate) {
 		int result = 0;
+		// send change
 		result = deviceConnection.controlTransfer(
 				FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE,
-				FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 0x4138,
+				FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, baudrate.getFtdiHexCode(),
 				FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
+		// get ack?
 		if (result == 0) {
 			result = deviceConnection.controlTransfer(
 					FTDI_Constants.FTDI_DEVICE_IN_REQTYPE,
-					FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, 0x4138,
+					FTDI_Constants.SIO_SET_BAUDRATE_REQUEST, baudrate.getFtdiHexCode(),
 					FTDI_Constants.INTERFACE_ANY, null, 0, 2000);
 			if (result != 0)
+			{	
 				lastError = FtdiInterfaceError.SET_BAUDRATE_IN_FAILED;
+			}
+			else
+			{	// got ack
+				this.baudrate = baudrate;
+			}
 		} else {
 			lastError = FtdiInterfaceError.SET_BAUDRATE_OUT_FAILED;
 		}
+		
 		return (result == 0);
 	}
 	
@@ -310,26 +329,7 @@ public class FTDI_Interface {
 		return lastError;
 	}
 
-	private int usbPurgeRXBuffer() {
-		return deviceConnection.controlTransfer(
-				FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE,
-				FTDI_Constants.SIO_RESET_PURGE_RX,
-				FTDI_Constants.SIO_RESET_SIO, FTDI_Constants.INTERFACE_ANY,
-				null, 0, 2000);
-		// TODO: I give it a INTERFACE_ANY as parameter. Need to verify if it is
-		// correct. I believe the Index doesn't matter.
-	}
-
-	private int usbPurgeTXBuffer() {
-		return deviceConnection.controlTransfer(
-				FTDI_Constants.FTDI_DEVICE_OUT_REQTYPE,
-				FTDI_Constants.SIO_RESET_PURGE_TX,
-				FTDI_Constants.SIO_RESET_SIO, FTDI_Constants.INTERFACE_ANY,
-				null, 0, 2000);
-		// TODO: I give it a INTERFACE_ANY as parameter. Need to verify if it is
-		// correct. I believe the Index doesn't matter.
-	}
-
+	
 	public int controlTransfer(int ftdiDeviceOutReqtype,
 			int sioSetModemCtrlRequest, short usb_val, int interfaceNum,
 			byte[] data, int length, int timeout) {
@@ -337,5 +337,12 @@ public class FTDI_Interface {
 		return (deviceConnection.controlTransfer(ftdiDeviceOutReqtype,
 				sioSetModemCtrlRequest, usb_val, interfaceNum, data, length,
 				timeout));
+	}
+
+	/**
+	 * @return the baudrate
+	 */
+	public FTDI232BM_Baudrates getBaudrate() {
+		return baudrate;
 	}
 }
