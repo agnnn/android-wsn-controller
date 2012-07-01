@@ -2,10 +2,11 @@ package de.rwth.comsys;
 
 import java.util.ArrayList;
 
-import de.rwth.comsys.Enums.MSP430_Command;
+import de.rwth.comsys.Enums.MSP430_Commands;
 
 public class MSP430Command {
-	private MSP430_Command command;
+	
+	private MSP430_Commands command;
 	private byte[] data;
 	private int startAddress;
 	private short length;
@@ -13,7 +14,7 @@ public class MSP430Command {
 	private ArrayList<Record> records;
 	
 	
-	public MSP430Command(MSP430_Command command, byte[] data, int startAddress, ArrayList<Record> records, short length ) {
+	public MSP430Command(MSP430_Commands command, byte[] data, int startAddress, ArrayList<Record> records, short length ) {
 		this.command = command;
 		this.data = data;
 		this.setStartAddress(startAddress);
@@ -21,23 +22,23 @@ public class MSP430Command {
 		this.length = length;
 	}
 	
-	public MSP430Command(MSP430_Command command) {
+	public MSP430Command(MSP430_Commands command) {
 		this(command, null, 0, null, (short) 0);
 	}
 	
-	public MSP430Command(MSP430_Command command, byte[] data) {
+	public MSP430Command(MSP430_Commands command, byte[] data) {
 		this(command, data, 0, null, (short) 0);
 	}
 	
-	public MSP430Command(MSP430_Command command, int startAddress) {
+	public MSP430Command(MSP430_Commands command, int startAddress) {
 		this(command, null, startAddress, null, (short) 0);
 	}
 	
-	public MSP430Command(MSP430_Command command, ArrayList<Record> records) {
+	public MSP430Command(MSP430_Commands command, ArrayList<Record> records) {
 		this(command, null, 0, records, (short) 0);
 	}
 	
-	public MSP430Command(MSP430_Command command, int startAddress, short length) {
+	public MSP430Command(MSP430_Commands command, int startAddress, short length) {
 		this(command, null, startAddress, null, length);
 	}
 	
@@ -46,14 +47,14 @@ public class MSP430Command {
 	/**
 	 * @return the command
 	 */
-	public MSP430_Command getCommand() {
+	public MSP430_Commands getCommand() {
 		return command;
 	}
 	
 	/**
 	 * @param command the command to set
 	 */
-	public void setCommand(MSP430_Command command) {
+	public void setCommand(MSP430_Commands command) {
 		this.command = command;
 	}
 	

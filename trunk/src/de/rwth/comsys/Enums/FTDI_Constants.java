@@ -304,4 +304,20 @@ public final class FTDI_Constants {
     public enum FTDI_PinChangeEnum{
     	CTS_CHANGED,DSR_CHANGED,RI_CHANGED, CD_CHANGED
     }
+    
+    //	Baudrates
+    public static final int FTDI232BM_BAUDRATE_300 = 0x2710;
+    public static final int FTDI232BM_BAUDRATE_600 = 0x1388;
+    public static final int FTDI232BM_BAUDRATE_1200 = 0x09C4;
+    public static final int FTDI232BM_BAUDRATE_2400 = 0x04E2;
+    public static final int FTDI232BM_BAUDRATE_4800 = 0x0271;
+    public static final int FTDI232BM_BAUDRATE_9600 = 0x4138;
+    public static final int FTDI232BM_BAUDRATE_19200 = 0x809C;
+    public static final int FTDI232BM_BAUDRATE_38400 = 0xC04E;
+    public static final int FTDI232BM_BAUDRATE_57600 = 0x0034;
+    public static final int FTDI232BM_BAUDRATE_115200 = 0x001A;
+    public static final int FTDI232BM_BAUDRATE_230400 = 0x000D;
+    public static final int FTDI232BM_BAUDRATE_460800 = 0x4006;
+    public static final int FTDI232BM_BAUDRATE_921600 = 0x8003;
+    
 }

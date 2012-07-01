@@ -9,8 +9,12 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import de.rwth.comsys.Enums.FTDI_Constants;
+import de.rwth.comsys.Enums.MSP430Baudrates;
+import de.rwth.comsys.Enums.MSP430Variants;
 
 /**
+ * Used to communicate with the device without freezing the GUI.
+ * Executes different commands which are stored in "ArrayList<MSP430Command> commands" . 
  * @author Christian
  * 
  */
@@ -20,16 +24,16 @@ public class SendReceiverThreadMSP430 extends Thread {
 	public int timeout = 3000;
 	private AndroidWSNControllerActivity context;
 
+	
 	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface) {
 		this.ftdiInterface = ftdiInterface;
 		ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
 		this.commands = commands;
 	}
 
-	public void setContext(AndroidWSNControllerActivity context)
-	{
-		this.context = context;
-	}
+	
+	
+	
 	
 	public void run() {
 		for (MSP430Command cmd : commands) {
@@ -57,6 +61,10 @@ public class SendReceiverThreadMSP430 extends Thread {
 					break;
 				
 				case CHANGE_BAUDRATE:
+					//TODO
+					break;
+				
+				case TX_BSL_VERSION:
 					//TODO
 					break;
 				
@@ -156,7 +164,14 @@ public class SendReceiverThreadMSP430 extends Thread {
 					Thread.sleep(10);
 					
 					// build message
-					data = TelosBConnector.createRXDataBlockCommand(currentRecord.getData(), currentRecord.getAddressHighByte(), currentRecord.getAddressLowByte());
+					data = MSP430PacketFactory.createRXDataBlockCommand(currentRecord.getData(), currentRecord.getAddressHighByte(), currentRecord.getAddressLowByte());
+					
+					// successfully build packet?
+					if (data == null)
+					{	
+						doOutput("Can't build packet!");
+						return;
+					}
 					
 					// send message
 					doOutput("Writting to address 0x"+Integer.toHexString(currentRecord.getAddressHighByte())+Integer.toHexString(currentRecord.getAddressLowByte()));
@@ -231,7 +246,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 				Thread.sleep(10);
 				
 				// build message
-				data = TelosBConnector.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
+				data = MSP430PacketFactory.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
 				
 				// send message
 				doOutput("Load PC at address 0x"+Integer.toHexString(startAddressHighByte)+Integer.toHexString(startAddressLowByte));
@@ -275,6 +290,90 @@ public class SendReceiverThreadMSP430 extends Thread {
 	}
 	
 	/**
+	 * Sends a CHANGE BAUDRATE command for a MSP430 device.
+	 * Get parameters by TX BSL Version command.
+	 * TODO Succeeding work: change Ftdi_Interface baudrate 
+	 * @param baudrate
+	 * @param variant
+	 */
+	private boolean changeBaudrate(MSP430Baudrates baudrate, MSP430Variants variant) {
+		
+		int maxRetrys = 5;
+		int currentRetry = 0;
+		
+		boolean successfullySend =  false;
+		boolean successfullyWritten = false;
+		
+		byte[] data;
+		byte[] readResult;
+	
+		// transmit 
+		try{
+			// retransmit necessary?
+			while(!successfullySend && (maxRetrys>currentRetry))
+			{	
+				// send sync sequence
+				sendBslSync(); 				
+				
+				// wait a short moment
+				Thread.sleep(10);
+				
+				// build message
+				data = MSP430PacketFactory.createChangeBaudrateCommand(baudrate, variant);
+				
+				// successfully build packet?
+				if (data == null)
+				{	
+					doOutput("Can't build packet!");
+					return false;
+				}
+				
+				// send message
+				doOutput("Changing baudrate to "+ baudrate.getBaudrate());
+				successfullyWritten = ftdiInterface.write(data, 2000);
+				
+				// ack receiving
+				if(successfullyWritten)
+				{	
+					readResult = ftdiInterface.read(1000);
+										
+					if(readResult != null && readResult.length > 0)
+					{	
+						// is ack?
+						if((readResult[0] & 0xFF) == 0x90)
+						{	
+							doOutput("OK");
+							successfullySend = true;
+							// wait a short moment to give the 
+							// clock system time for stabilization
+							Thread.sleep(20);
+						}
+					}
+				}
+			
+				// retry limiter
+				currentRetry++;
+			}
+		}
+		catch(InterruptedException e)
+		{
+			doOutput(e.getMessage());
+		}
+		
+		// no successfully transmission and max count of retries reached ?
+		if((!successfullySend) && (maxRetrys==currentRetry) )
+		{	
+			doOutput("Abort!");
+			return false;
+		}
+		
+		
+		doOutput("Succesfully changed baudrate!");
+		return true;
+		
+	}
+	
+	/**
 	 * Sends a TX DATA BLOCK command with specified startAddress to device.
 	 * Used to read data from memory.
 	 * @param length How many 16-bit blocks shall be read?
@@ -282,8 +381,8 @@ public class SendReceiverThreadMSP430 extends Thread {
 	 * @return received data from this startAddress
 	 */
 	private void requestData(int startAddress, short length) {
-		
-		int maxRetrys = 5;
+		//TODO alles
+		/**int maxRetrys = 5;
 		int currentRetry = 0;
 		
 		boolean successfullySend =  false;
@@ -308,7 +407,14 @@ public class SendReceiverThreadMSP430 extends Thread {
 				Thread.sleep(10);
 				
 				// build message
-				data = TelosBConnector.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
+				data = MSP430PacketFactory.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
+				
+				// successfully build packet?
+				if (data == null)
+				{	
+					doOutput("Can't build packet!");
+					return;
+				}
 				
 				// send message
 				doOutput("Load PC at address 0x"+Integer.toHexString(startAddressHighByte)+Integer.toHexString(startAddressLowByte));
@@ -348,7 +454,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		
 		
 		doOutput("Succesfully moved program counter vector!");
-		
+		*/
 	}
 	
 	private void doMassErase(byte[] data) {
@@ -421,7 +527,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 	        try {
 				Thread.sleep(250);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
+				
 				e.printStackTrace();
 			}
 		}
@@ -533,7 +639,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		} 
 		catch (InterruptedException e)
 		{
-			// TODO Auto-generated catch block
+		
 			e.printStackTrace();
 		}
 	}
@@ -559,5 +665,10 @@ public class SendReceiverThreadMSP430 extends Thread {
 		message.setData(data);
 		
 		handler.sendMessage(message);
+	}
+	
+	public void setContext(AndroidWSNControllerActivity context)
+	{
+		this.context = context;
 	}
 }
