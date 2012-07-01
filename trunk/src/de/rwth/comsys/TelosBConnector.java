@@ -14,6 +14,8 @@ import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Environment;
 import android.widget.TextView;
+import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
+import de.rwth.comsys.Enums.MSP430Variants;
 import de.rwth.comsys.Enums.MSP430_Commands;
 
 /**
@@ -90,6 +92,8 @@ public class TelosBConnector {
 			commandList.clear();
 			commandList.add(new MSP430Command(MSP430_Commands.MASS_ERASE,MSP430PacketFactory.createMassEraseCommand()));
 			commandList.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD, MSP430PacketFactory.createSetPasswordCommand(this.password)));
+			//TODO request variant
+			//commandList.add(new MSP430Command(MSP430_Commands.CHANGE_BAUDRATE, FTDI232BM_Matching_MSP430_Baudrates.BAUDRATE_38400, MSP430Variants.F2131));
 			commandList.add(new MSP430Command(MSP430_Commands.FLASH, records));
 			commandList.add(new MSP430Command(MSP430_Commands.LOAD_PC, Record.getStartAddress(records)));
 			startExecutionThread();

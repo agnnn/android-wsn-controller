@@ -2,7 +2,8 @@ package de.rwth.comsys;
 
 import java.nio.ByteBuffer;
 
-import de.rwth.comsys.Enums.MSP430Baudrates;
+
+import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
 import de.rwth.comsys.Enums.MSP430Variants;
 
 /**
@@ -180,7 +181,7 @@ public class MSP430PacketFactory {
 	 * @param startAddress 16-bit address < 1FF
 	 * @return packet to send or null if input was wrong
 	 */
-	public static byte[] createChangeBaudrateCommand(MSP430Baudrates baudrate, MSP430Variants variant)
+	public static byte[] createChangeBaudrateCommand(FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variants variant)
 	{	
 		// HEADER, CMD, L1, L2, AL, AH, LL, LH, CKL, CKH, ACK
 		int countOfAllBytes = 11; 
