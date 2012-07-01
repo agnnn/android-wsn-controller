@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
+
 import de.rwth.comsys.Enums.ErrorCodes;
 import de.rwth.comsys.Enums.RecordTypes;
 
@@ -21,14 +23,23 @@ public class HexLoader {
 	
 	
 	private ArrayList<Record> records = new ArrayList<Record>();
+	private File iHexFile = null;
+	private long dateOfFile = 0;
 	
-
-	public HexLoader()
+	private HexLoader(){}
+	
+	/**
+	 * Loads a iHex file from the given position on storage.
+	 * Parses the file to Records.
+	 * Does some syntax/semantic checks.
+	 * @param pathToFile
+	 */
+	public HexLoader(String pathToFile)
 	{
 		// check access to storage
 		if(checkAccessToExternalStorage() == false) return;
 		
-		File iHexFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "WSN" +  File.separator + "main.ihex");
+		iHexFile = new File(pathToFile);
 
 	    try {
 	        
@@ -56,6 +67,13 @@ public class HexLoader {
 	        }
 	        
 	        // check for end of file record
+	        if(Record.checkEndOfFileRecord(records)==false)
+	        {
+	        	handleError(ErrorCodes.HEXLOADER_RECORD_INVALID_END_OF_FILE_RECORD, "");
+	        }
+	        
+	        // set date of file
+	        setDateOfFile(iHexFile.lastModified());
 				        
 	    } catch (IOException e) {
 	    	handleError(ErrorCodes.HEXLOADER_CANT_LOAD_FILE, iHexFile.toString() + " " + e.toString());
@@ -80,7 +98,7 @@ public class HexLoader {
 		case HEXLOADER_RECORD_INVALID_START_SEGMENT_ADDRESS_RECORD:
 			//clear
 			records.clear();
-			Log.w("Hexloader", "Error: No start segment address rocord found or double entry!");
+			Log.w("Hexloader", "Error: No start segment address record found or double entry!");
 			break;
 		case HEXLOADER_NO_ACCESS_TO_STORAGE:
 			Log.w("Hexloader", "Error: No access to storage!");
@@ -88,7 +106,10 @@ public class HexLoader {
 		case HEXLOADER_CANT_LOAD_FILE:
 			Log.w("Hexloader", "Error: Can't read from file: " + additionalMsg);
 			break;	
-			
+		case HEXLOADER_RECORD_INVALID_END_OF_FILE_RECORD:
+			records.clear();
+			Log.w("Hexloader", "Error: No end of file record found or double entry!");
+			break;
 		default: 
 			break;	
 		}
@@ -206,8 +227,25 @@ public class HexLoader {
 	/**
 	 * @return the records
 	 */
-	public synchronized ArrayList<Record> getRecords() {
+	public ArrayList<Record> getRecords() {
 		return records;
+	}
+
+
+	/**
+	 * 
+	 * @return the dateOfFile 0 if no file exists.
+	 */
+	public long getDateOfFile() {
+		return dateOfFile;
+	}
+
+
+	/**
+	 * @param dateOfFile the dateOfFile to set
+	 */
+	public void setDateOfFile(long dateOfFile) {
+		this.dateOfFile = dateOfFile;
 	}
 
 	

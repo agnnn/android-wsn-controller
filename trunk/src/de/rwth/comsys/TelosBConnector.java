@@ -1,5 +1,6 @@
 package de.rwth.comsys;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.Environment;
 import android.widget.TextView;
 import de.rwth.comsys.Enums.MSP430_Command;
 
@@ -67,7 +69,7 @@ public class TelosBConnector {
 		byte[] data = new byte[available];
 		int readBytes = filein.read(data);*/
 		
-		ArrayList<Record> records =  (new HexLoader()).getRecords();
+		ArrayList<Record> records =  (new HexLoader(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "WSN" +  File.separator + "main.ihex")).getRecords();
 		
 		if(mDeviceConnection != null)
 		{

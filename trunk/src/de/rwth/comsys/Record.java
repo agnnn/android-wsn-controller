@@ -154,6 +154,36 @@ public class Record
 	}
 	
 	/**
+	 * Searches for a End Of File Record and returns true if it is the last record.
+	 * @param records List of Records
+	 * @return result
+	 */
+	public static boolean checkEndOfFileRecord(ArrayList<Record> records)
+	{	
+		Record currentRecord = null;
+		for(Iterator<Record> iter = records.iterator(); iter.hasNext();)
+		{
+			currentRecord = iter.next();
+			if(currentRecord.getRecordType().getCode() == RecordTypes.END_OF_FILE_RECORD.getCode())
+			{	
+				// must be last element
+				if(iter.hasNext())
+				{
+					return false;
+				}
+				else
+				{
+					return true;
+				}
+				
+			}
+		}
+		
+		return false;
+		
+	}
+	
+	/**
 	 * Removes all types of records except DATA_RECORD.
 	 * @param records
 	 * @return DATA_RECORD records

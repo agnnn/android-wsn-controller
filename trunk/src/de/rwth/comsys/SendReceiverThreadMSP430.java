@@ -57,7 +57,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					break;
 				
 				case CHANGE_BAUDRATE:
-					loadPC(cmd.getStartAddress());
+					//TODO
 					break;
 				
 				default: break;
@@ -275,14 +275,13 @@ public class SendReceiverThreadMSP430 extends Thread {
 	}
 	
 	/**
-	 * TODO
 	 * Sends a TX DATA BLOCK command with specified startAddress to device.
-	 * Used to read from memory.
+	 * Used to read data from memory.
 	 * @param length How many 16-bit blocks shall be read?
 	 * @param 16-bit startAddress
 	 * @return received data from this startAddress
-	 
-	private byte[] loadPC(int startAddress, short length) {
+	 */
+	private void requestData(int startAddress, short length) {
 		
 		int maxRetrys = 5;
 		int currentRetry = 0;
@@ -350,7 +349,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		
 		doOutput("Succesfully moved program counter vector!");
 		
-	}*/
+	}
 	
 	private void doMassErase(byte[] data) {
 		try{
