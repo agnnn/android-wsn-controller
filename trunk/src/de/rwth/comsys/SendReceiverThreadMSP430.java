@@ -65,7 +65,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					break;
 				
 				case TX_BSL_VERSION:
-					//TODO
+					requestBSLVersion();
 					break;
 				
 				default: break;
@@ -484,9 +484,73 @@ public class SendReceiverThreadMSP430 extends Thread {
 	 * 
 	 */
 	private void requestBSLVersion()
-	{
+	{	
+		/*int maxRetrys = 5;
+		int currentRetry = 0;
 		
+		boolean successfullySend =  false;
+		boolean successfullyWritten = false;
+		
+		byte[] data;
+		byte[] readResult = null;
+		
+		
+		
+		// transmit 
+		try{
+			// retransmit necessary?
+			while(!successfullySend && (maxRetrys>currentRetry))
+			{	
+				// send sync sequence
+				sendBslSync(); 				
+				
+				// wait a short moment
+				Thread.sleep(10);
+				
+				// build message
+				data = MSP430PacketFactory.createRequestBslVersionCommand();
+				
+				// send message
+				doOutput("Requesting BSL Version...");
+				successfullyWritten = ftdiInterface.write(data, 2000);
+				
+				// ack receiving
+				if(successfullyWritten)
+				{	
+					readResult = ftdiInterface.read(1000);
+										
+					if(readResult != null && readResult.length > 0)
+					{	
+						// is ack?
+						if((readResult[0] & 0xFF) == 0x90)
+						{	
+							doOutput("OK");
+							successfullySend = true;
+						}
+					}
+				}
+			
+				// retry limiter
+				currentRetry++;
+			}
+		}
+		catch(InterruptedException e)
+		{
+			doOutput(e.getMessage());
+		}
+		
+		// no successfully transmission and max count of retries reached ?
+		if((!successfullySend) && (maxRetrys==currentRetry) )
+		{	
+			doOutput("Abort!");
+			return;
+		}
+		
+		
+		doOutput("Succesfully requested BSL Version!");
+*/
 	}
+	
 	
 	/**
 	 * Sends a mass erase command,
