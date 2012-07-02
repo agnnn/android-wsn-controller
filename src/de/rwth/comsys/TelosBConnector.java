@@ -90,8 +90,9 @@ public class TelosBConnector {
 		if(mDeviceConnection != null)
 		{
 			commandList.clear();
-			commandList.add(new MSP430Command(MSP430_Commands.MASS_ERASE,MSP430PacketFactory.createMassEraseCommand()));
+			commandList.add(new MSP430Command(MSP430_Commands.MASS_ERASE));
 			commandList.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD, MSP430PacketFactory.createSetPasswordCommand(this.password)));
+			//commandList.add(new MSP430Command(MSP430_Commands.TX_BSL_VERSION));
 			//TODO request variant
 			//commandList.add(new MSP430Command(MSP430_Commands.CHANGE_BAUDRATE, FTDI232BM_Matching_MSP430_Baudrates.BAUDRATE_38400, MSP430Variants.F2131));
 			commandList.add(new MSP430Command(MSP430_Commands.FLASH, records));
