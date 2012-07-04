@@ -3,7 +3,7 @@ package de.rwth.comsys;
 import java.util.ArrayList;
 
 import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
-import de.rwth.comsys.Enums.MSP430Variants;
+import de.rwth.comsys.Enums.MSP430Variant;
 import de.rwth.comsys.Enums.MSP430_Commands;
 
 public class MSP430Command {
@@ -14,9 +14,9 @@ public class MSP430Command {
 	private ArrayList<Record> records;
 	private short length;
 	private FTDI232BM_Matching_MSP430_Baudrates baudrate;
-	private MSP430Variants variant;
+	private MSP430Variant variant;
 	
-	public MSP430Command(MSP430_Commands command, byte[] data, int startAddress, ArrayList<Record> records, short length, FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variants variant ) {
+	public MSP430Command(MSP430_Commands command, byte[] data, int startAddress, ArrayList<Record> records, short length, FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variant variant ) {
 		this.command = command;
 		this.data = data;
 		this.setStartAddress(startAddress);
@@ -46,7 +46,7 @@ public class MSP430Command {
 		this(command, null, startAddress, null, length, null, null);
 	}
 	
-	public MSP430Command(MSP430_Commands command, FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variants variant) {
+	public MSP430Command(MSP430_Commands command, FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variant variant) {
 		this(command, null, 0, null, (short) 0, baudrate, variant);
 	}
 
@@ -143,14 +143,14 @@ public class MSP430Command {
 	/**
 	 * @return the variant
 	 */
-	public MSP430Variants getVariant() {
+	public MSP430Variant getVariant() {
 		return variant;
 	}
 
 	/**
 	 * @param variant the variant to set
 	 */
-	public void setVariant(MSP430Variants variant) {
+	public void setVariant(MSP430Variant variant) {
 		this.variant = variant;
 	}
 	
