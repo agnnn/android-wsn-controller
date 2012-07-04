@@ -19,13 +19,13 @@ import de.rwth.comsys.Enums.MSP430Variant;
  * @author Christian & Stephan
  * 
  */
-public class SendReceiverThreadMSP430 extends Thread {
+public class ProgrammerThreadMSP430 extends Thread {
 	private FTDI_Interface ftdiInterface;
 	private ArrayList<MSP430Command> commands;
 	public int timeout = 3000;
 	private AndroidWSNControllerActivity context;
 
-	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands,
+	public ProgrammerThreadMSP430(ArrayList<MSP430Command> commands,
 			FTDI_Interface ftdiInterface) {
 		this.ftdiInterface = ftdiInterface;
 		ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8,
@@ -37,7 +37,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 	public void run() {
 		sendResetSequence(true); // reset seq
 		for (MSP430Command cmd : commands) {
-			doOutput("pollCmd: " + cmd.getCommand().toString());
+			IOHandler.doOutput("pollCmd: " + cmd.getCommand().toString());
 			
 			switch (cmd.getCommand()) {
 			case MASS_ERASE:
@@ -71,9 +71,9 @@ public class SendReceiverThreadMSP430 extends Thread {
 
 			default:
 				break;
-
 			}
 		}
+		// before the end of the thread set the programmingRunning variable to false;
 	}
 
 	private void setPassword(byte[] password) {
@@ -93,15 +93,15 @@ public class SendReceiverThreadMSP430 extends Thread {
 
 				boolean writeResult = ftdiInterface.write(data, 2000);
 				/*
-				 * for (byte b : data) { doOutput("0x"+Integer.toHexString(b));
+				 * for (byte b : data) { IOHandler.doOutput("0x"+Integer.toHexString(b));
 				 * }
 				 */
-				doOutput("Write password: " + writeResult);
+				IOHandler.doOutput("Write password: " + writeResult);
 
 				byte[] readResult = ftdiInterface.read(5000);
-				doOutput("Answer password:");
+				IOHandler.doOutput("Answer password:");
 				for (byte b : readResult) {
-					doOutput("0x" + Integer.toHexString(b & 0xFF) + ",");
+					IOHandler.doOutput("0x" + Integer.toHexString(b & 0xFF) + ",");
 				}
 				if (readResult != null && readResult.length > 0) {
 					if ((readResult[0] & 0xFF) == 0x90)
@@ -110,7 +110,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 				i++;
 			}
 		} catch (InterruptedException e) {
-			doOutput(e.getMessage());
+			IOHandler.doOutput(e.getMessage());
 		}
 	}
 
@@ -121,11 +121,11 @@ public class SendReceiverThreadMSP430 extends Thread {
 	private void flash(ArrayList<Record> records) {
 
 		if (records == null) {
-			doOutput("Flashing: Records == null !");
+			IOHandler.doOutput("Flashing: Records == null !");
 			return;
 		}
 
-		doOutput("Flashing...");
+		IOHandler.doOutput("Flashing...");
 
 		int maxRetrys = 5;
 		int currentRetry = 0;
@@ -167,12 +167,12 @@ public class SendReceiverThreadMSP430 extends Thread {
 
 					// successfully build packet?
 					if (data == null) {
-						doOutput("Can't build packet!");
+						IOHandler.doOutput("Can't build packet!");
 						return;
 					}
 
 					// send message
-					/*doOutput("Writting to address 0x"
+					/*IOHandler.doOutput("Writting to address 0x"
 							+ Integer.toHexString(currentRecord
 									.getAddressHighByte())
 							+ Integer.toHexString(currentRecord
@@ -187,7 +187,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 						if (readResult != null && readResult.length > 0) {
 							// is ack?
 							if ((readResult[0] & 0xFF) == 0x90) {
-								//doOutput("OK");
+								//IOHandler.doOutput("OK");
 								successfullySend = true;
 							}
 						}
@@ -197,17 +197,17 @@ public class SendReceiverThreadMSP430 extends Thread {
 					currentRetry++;
 				}
 			} catch (InterruptedException e) {
-				doOutput(e.getMessage());
+				IOHandler.doOutput(e.getMessage());
 			}
 
 			// no successfully transmission and max count of retries reached ?
 			if ((!successfullySend) && (maxRetrys == currentRetry)) {
-				doOutput("Abort!");
+				IOHandler.doOutput("Abort!");
 				return;
 			}
 		}
 
-		doOutput("Succesfully flashed!");
+		IOHandler.doOutput("Succesfully flashed!");
 
 	}
 
@@ -230,7 +230,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		// prepare startAddress
 		short startAddressHighByte = (short) ((startAddress >> 8) & 0xFF);
 		short startAddressLowByte = (short) (startAddress & 0xFF);
-		doOutput("StartAdress: " + startAddressHighByte + "   "
+		IOHandler.doOutput("StartAdress: " + startAddressHighByte + "   "
 				+ startAddressLowByte);
 		// transmit
 		try {
@@ -247,7 +247,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 						startAddressHighByte, startAddressLowByte);
 
 				// send message
-				doOutput("Load PC at address 0x"
+				IOHandler.doOutput("Load PC at address 0x"
 						+ Integer.toHexString(startAddressHighByte)
 						+ Integer.toHexString(startAddressLowByte));
 				successfullyWritten = ftdiInterface.write(data, 2000);
@@ -259,7 +259,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					if (readResult != null && readResult.length > 0) {
 						// is ack?
 						if ((readResult[0] & 0xFF) == 0x90) {
-							doOutput("OK");
+							IOHandler.doOutput("OK");
 							successfullySend = true;
 						}
 					}
@@ -269,16 +269,16 @@ public class SendReceiverThreadMSP430 extends Thread {
 				currentRetry++;
 			}
 		} catch (InterruptedException e) {
-			doOutput(e.getMessage());
+			IOHandler.doOutput(e.getMessage());
 		}
 
 		// no successfully transmission and max count of retries reached ?
 		if ((!successfullySend) && (maxRetrys == currentRetry)) {
-			doOutput("Abort!");
+			IOHandler.doOutput("Abort!");
 			return;
 		}
 
-		doOutput("Succesfully moved program counter vector!");
+		IOHandler.doOutput("Succesfully moved program counter vector!");
 
 	}
 
@@ -293,7 +293,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 			FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variant variant) {
 
 		if (baudrate == null || variant == null) {
-			doOutput("changeBaudrate: wrong input");
+			IOHandler.doOutput("changeBaudrate: wrong input");
 			return false;
 		}
 
@@ -322,12 +322,12 @@ public class SendReceiverThreadMSP430 extends Thread {
 
 				// successfully build packet?
 				if (data == null) {
-					doOutput("Can't build packet!");
+					IOHandler.doOutput("Can't build packet!");
 					return false;
 				}
 
 				// send message
-				doOutput("Changing baudrate to " + baudrate.getBaudrate());
+				IOHandler.doOutput("Changing baudrate to " + baudrate.getBaudrate());
 				successfullyWritten = ftdiInterface.write(data, 2000);
 
 				// ack receiving
@@ -337,7 +337,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					if (readResult != null && readResult.length > 0) {
 						// is ack?
 						if ((readResult[0] & 0xFF) == 0x90) {
-							doOutput("OK");
+							IOHandler.doOutput("OK");
 							successfullySend = true;
 							// wait a short moment to give the
 							// clock system time for stabilization
@@ -350,16 +350,16 @@ public class SendReceiverThreadMSP430 extends Thread {
 				currentRetry++;
 			}
 		} catch (InterruptedException e) {
-			doOutput(e.getMessage());
+			IOHandler.doOutput(e.getMessage());
 		}
 
 		// no successfully transmission and max count of retries reached ?
 		if ((!successfullySend) && (maxRetrys == currentRetry)) {
-			doOutput("Abort!");
+			IOHandler.doOutput("Abort!");
 			return false;
 		}
 
-		doOutput("Succesfully changed baudrate of MSP430!\nChanging baudrate of FTDI...");
+		IOHandler.doOutput("Succesfully changed baudrate of MSP430!\nChanging baudrate of FTDI...");
 
 		// change baudrate of ftdi
 		currentRetry = 0;
@@ -369,13 +369,13 @@ public class SendReceiverThreadMSP430 extends Thread {
 		}
 
 		if ((!successfullyChangedBaudrateOfFTDI) && (maxRetrys == currentRetry)) {
-			doOutput("Abort!");
+			IOHandler.doOutput("Abort!");
 			return false;
 		}
 
 		if(!sendBslSync())
 		{
-			doOutput("sync after baudrate reset failed!");
+			IOHandler.doOutput("sync after baudrate reset failed!");
 		}
 		*/
 		//ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8,
@@ -404,7 +404,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 		 * 
 		 * // prepare startAddress short startAddressHighByte = (short)
 		 * ((startAddress >> 8) & 0xFF); short startAddressLowByte = (short)
-		 * (startAddress & 0xFF); doOutput("StartAdress: "+ startAddressHighByte
+		 * (startAddress & 0xFF); IOHandler.doOutput("StartAdress: "+ startAddressHighByte
 		 * +"   "+startAddressLowByte ); // transmit try{ // retransmit
 		 * necessary? while(!successfullySend && (maxRetrys>currentRetry)) { //
 		 * send sync sequence sendBslSync();
@@ -416,9 +416,9 @@ public class SendReceiverThreadMSP430 extends Thread {
 		 * startAddressLowByte);
 		 * 
 		 * // successfully build packet? if (data == null) {
-		 * doOutput("Can't build packet!"); return; }
+		 * IOHandler.doOutput("Can't build packet!"); return; }
 		 * 
-		 * // send message doOutput("Load PC at address 0x"+Integer.toHexString(
+		 * // send message IOHandler.doOutput("Load PC at address 0x"+Integer.toHexString(
 		 * startAddressHighByte)+Integer.toHexString(startAddressLowByte));
 		 * successfullyWritten = ftdiInterface.write(data, 2000);
 		 * 
@@ -426,18 +426,18 @@ public class SendReceiverThreadMSP430 extends Thread {
 		 * ftdiInterface.read(1000);
 		 * 
 		 * if(readResult != null && readResult.length > 0) { // is ack?
-		 * if((readResult[0] & 0xFF) == 0x90) { doOutput("OK"); successfullySend
+		 * if((readResult[0] & 0xFF) == 0x90) { IOHandler.doOutput("OK"); successfullySend
 		 * = true; } } }
 		 * 
 		 * // retry limiter currentRetry++; } } catch(InterruptedException e) {
-		 * doOutput(e.getMessage()); }
+		 * IOHandler.doOutput(e.getMessage()); }
 		 * 
 		 * // no successfully transmission and max count of retries reached ?
 		 * if((!successfullySend) && (maxRetrys==currentRetry) ) {
-		 * doOutput("Abort!"); return; }
+		 * IOHandler.doOutput("Abort!"); return; }
 		 * 
 		 * 
-		 * doOutput("Succesfully moved program counter vector!");
+		 * IOHandler.doOutput("Succesfully moved program counter vector!");
 		 */
 	}
 
@@ -469,7 +469,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 				data = MSP430PacketFactory.createRequestBslVersionCommand();
 
 				// send message
-				doOutput("Requesting BSL Version...");
+				IOHandler.doOutput("Requesting BSL Version...");
 				successfullyWritten = ftdiInterface.write(data, 2000);
 
 				// ack receiving
@@ -479,7 +479,7 @@ public class SendReceiverThreadMSP430 extends Thread {
 					if (readResult != null && readResult.length > 0) {
 						// is ack?
 						if ((readResult[0] & 0xFF) == 0xA0) {
-							doOutput("get BSLVersion failed");
+							IOHandler.doOutput("get BSLVersion failed");
 						}
 						else
 						{
@@ -488,22 +488,22 @@ public class SendReceiverThreadMSP430 extends Thread {
 								byte highVersion = readResult[4];
 								byte lowVersion = readResult[5];
 								/*for (byte b : readResult) {
-									doOutput("0x"+Integer.toHexString(b));
+									IOHandler.doOutput("0x"+Integer.toHexString(b));
 								}*/
 								MSP430Variant variant = null;
 								if((variant = MSP430Variant.getDeviceVersion(highVersion, lowVersion)) != null)
 								{
 									context.getTelosBConnecter().setDeviceVariant(variant);
-									doOutput("DeviceVariant: "+variant.toString());
+									IOHandler.doOutput("DeviceVariant: "+variant.toString());
 								}
 								else
 								{
-									doOutput("no known device");
+									IOHandler.doOutput("no known device");
 								}
 							}
 							else
 							{
-								doOutput("wrong answer format");
+								IOHandler.doOutput("wrong answer format");
 							}
 							successfullySent = true;
 						}
@@ -514,16 +514,16 @@ public class SendReceiverThreadMSP430 extends Thread {
 				currentRetry++;
 			}
 		} catch (InterruptedException e) {
-			doOutput(e.getMessage());
+			IOHandler.doOutput(e.getMessage());
 		}
 
 		// no successfully transmission and max count of retries reached ?
 		if ((!successfullySent) && (maxRetrys == currentRetry)) {
-			doOutput("Abort!");
+			IOHandler.doOutput("Abort!");
 			return;
 		}
 
-		doOutput("Succesfully requested BSL Version!");
+		IOHandler.doOutput("Succesfully requested BSL Version!");
 	}
 
 	/**
@@ -544,12 +544,12 @@ public class SendReceiverThreadMSP430 extends Thread {
 
 				boolean writeResult = ftdiInterface.write(
 						MSP430PacketFactory.createMassEraseCommand(), 1000);
-				doOutput("Write massErase: " + writeResult);
+				IOHandler.doOutput("Write massErase: " + writeResult);
 
 				byte[] readResult = ftdiInterface.read(5000);
-				doOutput("Answer massErase:");
+				IOHandler.doOutput("Answer massErase:");
 				for (byte b : readResult) {
-					doOutput("0x" + Integer.toHexString(b & 0xFF) + ",");
+					IOHandler.doOutput("0x" + Integer.toHexString(b & 0xFF) + ",");
 				}
 				if (readResult != null && readResult.length > 0) {
 					if ((readResult[0] & 0xFF) == 0x90)
@@ -558,24 +558,24 @@ public class SendReceiverThreadMSP430 extends Thread {
 				i++;
 			}
 		} catch (InterruptedException e) {
-			doOutput(e.getMessage());
+			IOHandler.doOutput(e.getMessage());
 		}
 	}
 
 	private boolean sendBslSync() {
 		byte data[] = new byte[1];
 		data[0] = (byte) 0x80;
-		//doOutput("BSLSync...");
+		//IOHandler.doOutput("BSLSync...");
 		ftdiInterface.write(data, timeout);
 		byte[] resp = ftdiInterface.read(timeout);
 		if (resp.length > 0) {
 			if ((resp[0] & 0xFF) == 0x90) {
-				//doOutput("BSLSync ACK");
+				//IOHandler.doOutput("BSLSync ACK");
 				return true;
 			}
 
 		}
-		doOutput("BSLSync failed");
+		IOHandler.doOutput("BSLSync failed");
 		return false;
 	}
 
@@ -644,20 +644,6 @@ public class SendReceiverThreadMSP430 extends Thread {
 		telosWriteByte((byte) (0x90 | (addr << 1)));
 		telosWriteByte(cmd);
 		telosStop();
-	}
-
-	private void doOutput(final String msg) {
-		if (this.context == null)
-			return;
-
-		// do something before you send the message
-		Handler handler = context.getUiHandler();
-		Bundle data = new Bundle();
-		data.putString(null, msg);
-		Message message = handler.obtainMessage();
-		message.setData(data);
-
-		handler.sendMessage(message);
 	}
 
 	public void setContext(AndroidWSNControllerActivity context) {
