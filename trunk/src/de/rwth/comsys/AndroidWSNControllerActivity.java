@@ -36,6 +36,7 @@ public class AndroidWSNControllerActivity extends Activity {
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
+		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 		// get button and register listener
@@ -47,8 +48,13 @@ public class AndroidWSNControllerActivity extends Activity {
 		myButtonLoad.setOnClickListener(buttonLoadListener);
 		Button getVersionButton = (Button) findViewById(R.id.button3);
 		getVersionButton.setOnClickListener(getBSLVersionListener);
+		Button startSFButton = (Button) findViewById(R.id.button4);
+		startSFButton.setOnClickListener(startSFListener);
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
+		
+		// init io handler
+		IOHandler.setContext(this);
 
 		// retrieve USB Service
 		mManager = (UsbManager) getSystemService(Context.USB_SERVICE);
@@ -104,6 +110,17 @@ public class AndroidWSNControllerActivity extends Activity {
 		}
 	};
 
+	// OnClickListener iterates over connected devices and requests permission
+	private OnClickListener startSFListener = new OnClickListener() {
+		public void onClick(View v) {
+			try {
+				telosBConnect.execSerialForwarder("2001");
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				textView.append(e.getMessage() + "\n");
+			}			
+		}
+	};
 	// OnClickListener sends a packet to mDevice
 	private OnClickListener buttonSendListener = new OnClickListener() {
 		public void onClick(View v) {

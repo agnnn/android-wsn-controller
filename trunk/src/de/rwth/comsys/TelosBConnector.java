@@ -1,7 +1,11 @@
 package de.rwth.comsys;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 
+import android.content.Intent;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -9,6 +13,7 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.widget.TextView;
+import android.widget.Toast;
 import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
 import de.rwth.comsys.Enums.MSP430Variant;
 import de.rwth.comsys.Enums.MSP430_Commands;
@@ -34,6 +39,7 @@ public class TelosBConnector {
 	private final int PASSWORD_LENGTH = 32;
 	private MSP430Variant deviceVariant = null;
 	private AndroidWSNControllerActivity context;
+	ProgrammerThreadMSP430 myThread = null;
 	
 	public TelosBConnector(UsbManager usbManager, AndroidWSNControllerActivity parentActivity)
 	{
@@ -52,6 +58,26 @@ public class TelosBConnector {
 		this.password = defaultPwd;
 	}
 	
+	public boolean execSerialForwarder(String dstPort) throws UnknownHostException, IOException
+	{
+		if(myThread != null && myThread.isAlive())
+		{
+			textView.append("Error: a programming is currently running\n");
+			return false;
+		}
+		Integer port = Integer.valueOf(dstPort);
+		if(port != null)
+		{
+			//IOHandler.doOutput("try starting ServerSocket Service");
+			SocketService.setContext(context);
+			SocketService.setInterface(ftdiInterface);
+			Intent mySocketIntent = new Intent(context, ServerSocket.class);
+			context.startService(mySocketIntent);
+			return false;
+		}
+		return false;
+	}
+	
 	/**
 	 * Executes a mass erase command,
 	 * which erases the entire flash memory area.
@@ -60,6 +86,11 @@ public class TelosBConnector {
 	 */
 	public void execMassErase() throws Exception
 	{
+		if(myThread != null && myThread.isAlive())
+		{
+			textView.append("Error: a programming is currently running\n");
+			return;
+		}
 		textView.append("exec mass erase\n");
 		if(mDeviceConnection != null)
 		{
@@ -81,6 +112,11 @@ public class TelosBConnector {
 	 */
 	public void execFlash(ArrayList<Record> records) throws Exception
 	{
+		if(myThread != null && myThread.isAlive())
+		{
+			textView.append("Error: a programming is currently running\n");
+			return;
+		}
 		textView.append("exec flash erase\n");
 		
 		if(mDeviceConnection != null)
@@ -118,7 +154,7 @@ public class TelosBConnector {
 			case 0x6001: 
 				try{
 					textView.append("start execution\n");
-					SendReceiverThreadMSP430 myThread = new SendReceiverThreadMSP430( commandList,ftdiInterface );
+					myThread = new ProgrammerThreadMSP430( commandList, ftdiInterface );
 					myThread.setContext(this.context);
 					myThread.start();
 					return;
@@ -228,6 +264,11 @@ public class TelosBConnector {
 	}
 
 	public void execGetBslVersion() throws Exception {
+		if(myThread != null && myThread.isAlive())
+		{
+			textView.append("Error: a programming is currently running\n");
+			return;
+		}
 		textView.append("exec getBslVersion\n");
 		if(mDeviceConnection != null)
 		{

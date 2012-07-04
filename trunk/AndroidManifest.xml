@@ -6,6 +6,8 @@
 	<uses-feature android:name="android.hardware.usb.host" />
     <uses-sdk android:minSdkVersion="12" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET" android:label="Socket Permission" />
+    
 
     <application
         android:icon="@drawable/ic_launcher"
@@ -26,7 +28,7 @@
         			android:resource="@xml/device_filter" />
             
           </activity>  
-        	
+          <service android:enabled="true" android:name=".SocketService" />
     </application>
 
 </manifest>
