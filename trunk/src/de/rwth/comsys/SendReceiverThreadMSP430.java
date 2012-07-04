@@ -4,16 +4,18 @@
 package de.rwth.comsys;
 
 import java.util.ArrayList;
+
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
 import de.rwth.comsys.Enums.FTDI_Constants;
-import de.rwth.comsys.Enums.MSP430Variants;
+import de.rwth.comsys.Enums.MSP430Variant;
 
 /**
- * Used to communicate with the device without freezing the GUI.
- * Executes different commands which are stored in "ArrayList<MSP430Command> commands" . 
+ * Used to communicate with the device without freezing the GUI. Executes
+ * different commands which are stored in "ArrayList<MSP430Command> commands" .
+ * 
  * @author Christian & Stephan
  * 
  */
@@ -22,54 +24,54 @@ public class SendReceiverThreadMSP430 extends Thread {
 	private ArrayList<MSP430Command> commands;
 	public int timeout = 3000;
 	private AndroidWSNControllerActivity context;
-	 
 
-	
-	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface) {
+	public SendReceiverThreadMSP430(ArrayList<MSP430Command> commands,
+			FTDI_Interface ftdiInterface) {
 		this.ftdiInterface = ftdiInterface;
-		ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
+		ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8,
+				FTDI_Constants.STOP_BITS_1, FTDI_Constants.PARITY_EVEN,
+				FTDI_Constants.BREAK_OFF);
 		this.commands = commands;
 	}
 
-	
-	
-	
-	
 	public void run() {
+		sendResetSequence(true); // reset seq
 		for (MSP430Command cmd : commands) {
-			doOutput("pollCmd: "+cmd.getCommand().toString());
-			switch (cmd.getCommand())
-			{
-				case MASS_ERASE:
-					doMassErase();
-					break;
-				
-				case SET_PASSWORD: 
-					setPassword(cmd.getData());
-					break;
-				
-				case TRANSMIT_PASSWORD: 
-					transmitPassword(cmd.getData());
-					break;
-				
-				case FLASH:
-					flash(cmd.getRecords());
-					break;
-					
-				case LOAD_PC:
-					loadPC(cmd.getStartAddress());
-					break;
-				
-				case CHANGE_BAUDRATE:
-					changeBaudrate(cmd.getBaudrate(), cmd.getVariant());
-					break;
-				
-				case TX_BSL_VERSION:
-					requestBSLVersion();
-					break;
-				
-				default: break;
-					
+			doOutput("pollCmd: " + cmd.getCommand().toString());
+			
+			switch (cmd.getCommand()) {
+			case MASS_ERASE:
+				doMassErase();
+				break;
+
+			case SET_PASSWORD:
+				setPassword(cmd.getData());
+				break;
+
+			case TRANSMIT_PASSWORD:
+				transmitPassword(cmd.getData());
+				break;
+
+			case FLASH:
+				flash(cmd.getRecords());
+				break;
+
+			case LOAD_PC:
+				loadPC(cmd.getStartAddress());
+				break;
+
+			case CHANGE_BAUDRATE:
+				changeBaudrate(cmd.getBaudrate(), cmd.getVariant());
+				//ftdiInterface.resetUsb();
+				break;
+
+			case TX_BSL_VERSION:
+				requestBSLVersion();
+				break;
+
+			default:
+				break;
+
 			}
 		}
 	}
@@ -78,562 +80,527 @@ public class SendReceiverThreadMSP430 extends Thread {
 		ftdiInterface.write(password, 5000);
 	}
 
-
 	private void transmitPassword(byte[] data) {
-		try{
+		try {
 			// Request to transmit password
-			int i=0;
+			int i = 0;
 			boolean success = false;
 
-			while(!(success || i>1))
-			{
-				sendBslSync(); 				// sendHeader
-				
-				Thread.sleep(200);
-								
-				boolean writeResult = ftdiInterface.write(data, 1000);
-				/*for (byte b : data) {
-					doOutput("0x"+Integer.toHexString(b));
-				}*/
-				doOutput("Write password: "+writeResult);
-				
+			while (!(success || i > 3)) {
+				sendBslSync(); // sendHeader
+
+				Thread.sleep(20);
+
+				boolean writeResult = ftdiInterface.write(data, 2000);
+				/*
+				 * for (byte b : data) { doOutput("0x"+Integer.toHexString(b));
+				 * }
+				 */
+				doOutput("Write password: " + writeResult);
+
 				byte[] readResult = ftdiInterface.read(5000);
 				doOutput("Answer password:");
 				for (byte b : readResult) {
-					doOutput("0x"+Integer.toHexString(b & 0xFF)+",");
+					doOutput("0x" + Integer.toHexString(b & 0xFF) + ",");
 				}
-				if(readResult != null && readResult.length > 0)
-				{
-					if((readResult[0] & 0xFF) == 0x90)
+				if (readResult != null && readResult.length > 0) {
+					if ((readResult[0] & 0xFF) == 0x90)
 						break;
 				}
 				i++;
 			}
-		}catch(InterruptedException e)
-		{
+		} catch (InterruptedException e) {
 			doOutput(e.getMessage());
 		}
 	}
-	
+
 	/**
-	 * Sends a loaded ihex file to device.
-	 * The ihex file is represented by Record.java.
+	 * Sends a loaded ihex file to device. The ihex file is represented by
+	 * Record.java.
 	 */
 	private void flash(ArrayList<Record> records) {
-		
-		if(records == null)
-		{
+
+		if (records == null) {
 			doOutput("Flashing: Records == null !");
 			return;
 		}
-		
+
 		doOutput("Flashing...");
-		
+
 		int maxRetrys = 5;
 		int currentRetry = 0;
-		
+
 		boolean successfullySend;
 		boolean successfullyWritten;
 		Record currentRecord;
 		byte[] data;
 		byte[] readResult;
-		
+
 		// prepare records
 		records = Record.getOnlyDataRecords(records);
-		
+
 		// is there anything to transmit?
-		while(!records.isEmpty())
-		{	
+		while (!records.isEmpty()) {
 			// get and remove first record
 			currentRecord = records.get(0);
 			records.remove(0);
-			
+
 			successfullySend = false;
 			successfullyWritten = false;
 			currentRetry = 0;
-			
-			// transmit 
-			try{
+
+			// transmit
+			try {
 				// retransmit necessary?
-				while(!successfullySend && (maxRetrys>currentRetry))
-				{	
+				while (!successfullySend && (maxRetrys > currentRetry)) {
 					// send sync sequence
-					sendBslSync(); 				
-					
+					sendBslSync();
+
 					// wait a short moment
 					Thread.sleep(10);
-					
+
 					// build message
-					data = MSP430PacketFactory.createRXDataBlockCommand(currentRecord.getData(), currentRecord.getAddressHighByte(), currentRecord.getAddressLowByte());
-					
+					data = MSP430PacketFactory.createRXDataBlockCommand(
+							currentRecord.getData(),
+							currentRecord.getAddressHighByte(),
+							currentRecord.getAddressLowByte());
+
 					// successfully build packet?
-					if (data == null)
-					{	
+					if (data == null) {
 						doOutput("Can't build packet!");
 						return;
 					}
-					
+
 					// send message
-					doOutput("Writting to address 0x"+Integer.toHexString(currentRecord.getAddressHighByte())+Integer.toHexString(currentRecord.getAddressLowByte()));
+					/*doOutput("Writting to address 0x"
+							+ Integer.toHexString(currentRecord
+									.getAddressHighByte())
+							+ Integer.toHexString(currentRecord
+									.getAddressLowByte()));
+*/
 					successfullyWritten = ftdiInterface.write(data, 2000);
-					
+
 					// ack receiving
-					if(successfullyWritten)
-					{	
+					if (successfullyWritten) {
 						readResult = ftdiInterface.read(2000);
-											
-						if(readResult != null && readResult.length > 0)
-						{	
+
+						if (readResult != null && readResult.length > 0) {
 							// is ack?
-							if((readResult[0] & 0xFF) == 0x90)
-							{	
-								doOutput("OK");
+							if ((readResult[0] & 0xFF) == 0x90) {
+								//doOutput("OK");
 								successfullySend = true;
 							}
 						}
 					}
-					
+
 					// retry limiter
 					currentRetry++;
 				}
-			}
-			catch(InterruptedException e)
-			{
+			} catch (InterruptedException e) {
 				doOutput(e.getMessage());
 			}
-			
+
 			// no successfully transmission and max count of retries reached ?
-			if((!successfullySend) && (maxRetrys==currentRetry) )
-			{	
+			if ((!successfullySend) && (maxRetrys == currentRetry)) {
 				doOutput("Abort!");
 				return;
 			}
 		}
-		
+
 		doOutput("Succesfully flashed!");
-		
+
 	}
-	
+
 	/**
 	 * Sends a LoadPC command with specified startAddress to device .
 	 * 
-	 * @param  16-bit startAddress
+	 * @param 16-bit startAddress
 	 */
 	private void loadPC(int startAddress) {
-		
+
 		int maxRetrys = 5;
 		int currentRetry = 0;
-		
-		boolean successfullySend =  false;
+
+		boolean successfullySend = false;
 		boolean successfullyWritten = false;
-		
+
 		byte[] data;
 		byte[] readResult;
-		
+
 		// prepare startAddress
 		short startAddressHighByte = (short) ((startAddress >> 8) & 0xFF);
 		short startAddressLowByte = (short) (startAddress & 0xFF);
-		doOutput("StartAdress: "+ startAddressHighByte +"   "+startAddressLowByte );
-		// transmit 
-		try{
+		doOutput("StartAdress: " + startAddressHighByte + "   "
+				+ startAddressLowByte);
+		// transmit
+		try {
 			// retransmit necessary?
-			while(!successfullySend && (maxRetrys>currentRetry))
-			{	
+			while (!successfullySend && (maxRetrys > currentRetry)) {
 				// send sync sequence
-				sendBslSync(); 				
-				
+				sendBslSync();
+
 				// wait a short moment
 				Thread.sleep(10);
-				
+
 				// build message
-				data = MSP430PacketFactory.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
-				
+				data = MSP430PacketFactory.createLoadPCCommand(
+						startAddressHighByte, startAddressLowByte);
+
 				// send message
-				doOutput("Load PC at address 0x"+Integer.toHexString(startAddressHighByte)+Integer.toHexString(startAddressLowByte));
+				doOutput("Load PC at address 0x"
+						+ Integer.toHexString(startAddressHighByte)
+						+ Integer.toHexString(startAddressLowByte));
 				successfullyWritten = ftdiInterface.write(data, 2000);
-				
+
 				// ack receiving
-				if(successfullyWritten)
-				{	
+				if (successfullyWritten) {
 					readResult = ftdiInterface.read(1000);
-										
-					if(readResult != null && readResult.length > 0)
-					{	
+
+					if (readResult != null && readResult.length > 0) {
 						// is ack?
-						if((readResult[0] & 0xFF) == 0x90)
-						{	
+						if ((readResult[0] & 0xFF) == 0x90) {
 							doOutput("OK");
 							successfullySend = true;
 						}
 					}
 				}
-			
+
 				// retry limiter
 				currentRetry++;
 			}
-		}
-		catch(InterruptedException e)
-		{
+		} catch (InterruptedException e) {
 			doOutput(e.getMessage());
 		}
-		
+
 		// no successfully transmission and max count of retries reached ?
-		if((!successfullySend) && (maxRetrys==currentRetry) )
-		{	
+		if ((!successfullySend) && (maxRetrys == currentRetry)) {
 			doOutput("Abort!");
 			return;
 		}
-		
-		
+
 		doOutput("Succesfully moved program counter vector!");
-		
+
 	}
-	
+
 	/**
-	 * Sends a CHANGE BAUDRATE command for a MSP430 device.
-	 * Get parameters by TX BSL Version command.
-	 * Changes Ftdi_Interface baudrate. 
+	 * Sends a CHANGE BAUDRATE command for a MSP430 device. Get parameters by TX
+	 * BSL Version command. Changes Ftdi_Interface baudrate.
+	 * 
 	 * @param baudrate
 	 * @param variant
 	 */
-	private boolean changeBaudrate(FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variants variant) {
-		
-		if(baudrate == null || variant == null)
-		{
+	private boolean changeBaudrate(
+			FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variant variant) {
+
+		if (baudrate == null || variant == null) {
 			doOutput("changeBaudrate: wrong input");
 			return false;
 		}
-		
+
 		int maxRetrys = 5;
 		int currentRetry = 0;
-		
-		boolean successfullySend =  false;
+
+		boolean successfullySend = false;
 		boolean successfullyWritten = false;
-		boolean successfullyChangedBaudrateOfFTDI =  false;
-		
+		boolean successfullyChangedBaudrateOfFTDI = false;
+
 		byte[] data;
 		byte[] readResult;
-	
-		// transmit 
-		try{
+		
+		// transmit
+		try {
 			// retransmit necessary?
-			while(!successfullySend && (maxRetrys>currentRetry))
-			{	
+			while (!successfullySend && (maxRetrys > currentRetry)) {
 				// send sync sequence
-				sendBslSync(); 				
-				
+				sendBslSync();
+
 				// wait a short moment
 				Thread.sleep(10);
-				
+
 				// build message
 				data = MSP430PacketFactory.createChangeBaudrateCommand(baudrate, variant);
-				
+
 				// successfully build packet?
-				if (data == null)
-				{	
+				if (data == null) {
 					doOutput("Can't build packet!");
 					return false;
 				}
-				
+
 				// send message
-				doOutput("Changing baudrate to "+ baudrate.getBaudrate());
+				doOutput("Changing baudrate to " + baudrate.getBaudrate());
 				successfullyWritten = ftdiInterface.write(data, 2000);
-				
+
 				// ack receiving
-				if(successfullyWritten)
-				{	
-					readResult = ftdiInterface.read(1000);
-										
-					if(readResult != null && readResult.length > 0)
-					{	
+				if (successfullyWritten) {
+					readResult = ftdiInterface.read(2000);
+
+					if (readResult != null && readResult.length > 0) {
 						// is ack?
-						if((readResult[0] & 0xFF) == 0x90)
-						{	
+						if ((readResult[0] & 0xFF) == 0x90) {
 							doOutput("OK");
 							successfullySend = true;
-							// wait a short moment to give the 
+							// wait a short moment to give the
 							// clock system time for stabilization
-							Thread.sleep(20);
+							Thread.sleep(1000);
 						}
 					}
 				}
-			
+
 				// retry limiter
 				currentRetry++;
 			}
-		}
-		catch(InterruptedException e)
-		{
+		} catch (InterruptedException e) {
 			doOutput(e.getMessage());
 		}
-		
+
 		// no successfully transmission and max count of retries reached ?
-		if((!successfullySend) && (maxRetrys==currentRetry) )
-		{	
+		if ((!successfullySend) && (maxRetrys == currentRetry)) {
 			doOutput("Abort!");
 			return false;
 		}
-				
+
 		doOutput("Succesfully changed baudrate of MSP430!\nChanging baudrate of FTDI...");
-		
-		
+
 		// change baudrate of ftdi
 		currentRetry = 0;
-		while(!successfullyChangedBaudrateOfFTDI && (maxRetrys>currentRetry))
-		{	
+		/*while (!successfullyChangedBaudrateOfFTDI && (maxRetrys > currentRetry)) {
 			successfullyChangedBaudrateOfFTDI = ftdiInterface.setBaudrate(baudrate);
+			currentRetry++;
 		}
-		
-		if((!successfullyChangedBaudrateOfFTDI) && (maxRetrys==currentRetry) )
-		{	
+
+		if ((!successfullyChangedBaudrateOfFTDI) && (maxRetrys == currentRetry)) {
 			doOutput("Abort!");
 			return false;
 		}
-		
-		//TODO ???ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8, FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
-		return successfullyChangedBaudrateOfFTDI ;
-		
+
+		if(!sendBslSync())
+		{
+			doOutput("sync after baudrate reset failed!");
+		}
+		*/
+		//ftdiInterface.setLineProperties(FTDI_Constants.DATA_BITS_8,
+		//		FTDI_Constants.STOP_BITS_1,FTDI_Constants.PARITY_EVEN,FTDI_Constants.BREAK_OFF);
+		return successfullyChangedBaudrateOfFTDI;
 	}
-	
+
 	/**
-	 * Sends a TX DATA BLOCK command with specified startAddress to device.
-	 * Used to read data from memory.
-	 * @param length How many 16-bit blocks shall be read?
+	 * Sends a TX DATA BLOCK command with specified startAddress to device. Used
+	 * to read data from memory.
+	 * 
+	 * @param length
+	 *            How many 16-bit blocks shall be read?
 	 * @param 16-bit startAddress
 	 * @return received data from this startAddress
 	 */
 	private void requestData(int startAddress, short length) {
-		//TODO alles
-		/**int maxRetrys = 5;
-		int currentRetry = 0;
-		
-		boolean successfullySend =  false;
-		boolean successfullyWritten = false;
-		
-		byte[] data;
-		byte[] readResult;
-		
-		// prepare startAddress
-		short startAddressHighByte = (short) ((startAddress >> 8) & 0xFF);
-		short startAddressLowByte = (short) (startAddress & 0xFF);
-		doOutput("StartAdress: "+ startAddressHighByte +"   "+startAddressLowByte );
-		// transmit 
-		try{
-			// retransmit necessary?
-			while(!successfullySend && (maxRetrys>currentRetry))
-			{	
-				// send sync sequence
-				sendBslSync(); 				
-				
-				// wait a short moment
-				Thread.sleep(10);
-				
-				// build message
-				data = MSP430PacketFactory.createLoadPCCommand(startAddressHighByte, startAddressLowByte);
-				
-				// successfully build packet?
-				if (data == null)
-				{	
-					doOutput("Can't build packet!");
-					return;
-				}
-				
-				// send message
-				doOutput("Load PC at address 0x"+Integer.toHexString(startAddressHighByte)+Integer.toHexString(startAddressLowByte));
-				successfullyWritten = ftdiInterface.write(data, 2000);
-				
-				// ack receiving
-				if(successfullyWritten)
-				{	
-					readResult = ftdiInterface.read(1000);
-										
-					if(readResult != null && readResult.length > 0)
-					{	
-						// is ack?
-						if((readResult[0] & 0xFF) == 0x90)
-						{	
-							doOutput("OK");
-							successfullySend = true;
-						}
-					}
-				}
-			
-				// retry limiter
-				currentRetry++;
-			}
-		}
-		catch(InterruptedException e)
-		{
-			doOutput(e.getMessage());
-		}
-		
-		// no successfully transmission and max count of retries reached ?
-		if((!successfullySend) && (maxRetrys==currentRetry) )
-		{	
-			doOutput("Abort!");
-			return;
-		}
-		
-		
-		doOutput("Succesfully moved program counter vector!");
-		*/
+		// TODO alles
+		/**
+		 * int maxRetrys = 5; int currentRetry = 0;
+		 * 
+		 * boolean successfullySend = false; boolean successfullyWritten =
+		 * false;
+		 * 
+		 * byte[] data; byte[] readResult;
+		 * 
+		 * // prepare startAddress short startAddressHighByte = (short)
+		 * ((startAddress >> 8) & 0xFF); short startAddressLowByte = (short)
+		 * (startAddress & 0xFF); doOutput("StartAdress: "+ startAddressHighByte
+		 * +"   "+startAddressLowByte ); // transmit try{ // retransmit
+		 * necessary? while(!successfullySend && (maxRetrys>currentRetry)) { //
+		 * send sync sequence sendBslSync();
+		 * 
+		 * // wait a short moment Thread.sleep(10);
+		 * 
+		 * // build message data =
+		 * MSP430PacketFactory.createLoadPCCommand(startAddressHighByte,
+		 * startAddressLowByte);
+		 * 
+		 * // successfully build packet? if (data == null) {
+		 * doOutput("Can't build packet!"); return; }
+		 * 
+		 * // send message doOutput("Load PC at address 0x"+Integer.toHexString(
+		 * startAddressHighByte)+Integer.toHexString(startAddressLowByte));
+		 * successfullyWritten = ftdiInterface.write(data, 2000);
+		 * 
+		 * // ack receiving if(successfullyWritten) { readResult =
+		 * ftdiInterface.read(1000);
+		 * 
+		 * if(readResult != null && readResult.length > 0) { // is ack?
+		 * if((readResult[0] & 0xFF) == 0x90) { doOutput("OK"); successfullySend
+		 * = true; } } }
+		 * 
+		 * // retry limiter currentRetry++; } } catch(InterruptedException e) {
+		 * doOutput(e.getMessage()); }
+		 * 
+		 * // no successfully transmission and max count of retries reached ?
+		 * if((!successfullySend) && (maxRetrys==currentRetry) ) {
+		 * doOutput("Abort!"); return; }
+		 * 
+		 * 
+		 * doOutput("Succesfully moved program counter vector!");
+		 */
 	}
-	
+
 	/**
 	 * TODO
 	 * 
 	 */
-	private void requestBSLVersion()
-	{	
-		/*int maxRetrys = 5;
+	private void requestBSLVersion() {
+		int maxRetrys = 5;
 		int currentRetry = 0;
-		
-		boolean successfullySend =  false;
+
+		boolean successfullySent = false;
 		boolean successfullyWritten = false;
-		
+
 		byte[] data;
 		byte[] readResult = null;
-		
-		
-		
-		// transmit 
-		try{
+
+		// transmit
+		try {
 			// retransmit necessary?
-			while(!successfullySend && (maxRetrys>currentRetry))
-			{	
+			while (!successfullySent && (maxRetrys > currentRetry)) {
 				// send sync sequence
-				sendBslSync(); 				
-				
+				sendBslSync();
+
 				// wait a short moment
-				Thread.sleep(10);
-				
+				Thread.sleep(20);
+
 				// build message
 				data = MSP430PacketFactory.createRequestBslVersionCommand();
-				
+
 				// send message
 				doOutput("Requesting BSL Version...");
 				successfullyWritten = ftdiInterface.write(data, 2000);
-				
+
 				// ack receiving
-				if(successfullyWritten)
-				{	
-					readResult = ftdiInterface.read(1000);
-										
-					if(readResult != null && readResult.length > 0)
-					{	
+				if (successfullyWritten) {
+					readResult = ftdiInterface.read(2000);
+
+					if (readResult != null && readResult.length > 0) {
 						// is ack?
-						if((readResult[0] & 0xFF) == 0x90)
-						{	
-							doOutput("OK");
-							successfullySend = true;
+						if ((readResult[0] & 0xFF) == 0xA0) {
+							doOutput("get BSLVersion failed");
+						}
+						else
+						{
+							if(readResult.length >= 6)
+							{
+								byte highVersion = readResult[4];
+								byte lowVersion = readResult[5];
+								/*for (byte b : readResult) {
+									doOutput("0x"+Integer.toHexString(b));
+								}*/
+								MSP430Variant variant = null;
+								if((variant = MSP430Variant.getDeviceVersion(highVersion, lowVersion)) != null)
+								{
+									context.getTelosBConnecter().setDeviceVariant(variant);
+									doOutput("DeviceVariant: "+variant.toString());
+								}
+								else
+								{
+									doOutput("no known device");
+								}
+							}
+							else
+							{
+								doOutput("wrong answer format");
+							}
+							successfullySent = true;
 						}
 					}
 				}
-			
+
 				// retry limiter
 				currentRetry++;
 			}
-		}
-		catch(InterruptedException e)
-		{
+		} catch (InterruptedException e) {
 			doOutput(e.getMessage());
 		}
-		
+
 		// no successfully transmission and max count of retries reached ?
-		if((!successfullySend) && (maxRetrys==currentRetry) )
-		{	
+		if ((!successfullySent) && (maxRetrys == currentRetry)) {
 			doOutput("Abort!");
 			return;
 		}
-		
-		
+
 		doOutput("Succesfully requested BSL Version!");
-*/
 	}
-	
-	
+
 	/**
-	 * Sends a mass erase command,
-	 * which erases the entire flash memory area.
+	 * Sends a mass erase command, which erases the entire flash memory area.
 	 * 
 	 */
 	private void doMassErase() {
-		try{
+		try {
 			// Request to mass erase
-			int i=0;
+			int i = 0;
 			boolean success = false;
 
-			while(!(success || i>5))
-			{
-				sendResetSequence(true); 	//reset seq
-				sendBslSync(); 				// sendHeader
+			while (!(success || i > 5)) {
 				
+				sendBslSync(); // sendHeader
+
 				Thread.sleep(200);
-								
-				boolean writeResult = ftdiInterface.write(MSP430PacketFactory.createMassEraseCommand(), 1000);
-				doOutput("Write massErase: "+writeResult);
-				
+
+				boolean writeResult = ftdiInterface.write(
+						MSP430PacketFactory.createMassEraseCommand(), 1000);
+				doOutput("Write massErase: " + writeResult);
+
 				byte[] readResult = ftdiInterface.read(5000);
 				doOutput("Answer massErase:");
 				for (byte b : readResult) {
-					doOutput("0x"+Integer.toHexString(b & 0xFF)+",");
+					doOutput("0x" + Integer.toHexString(b & 0xFF) + ",");
 				}
-				if(readResult != null && readResult.length > 0)
-				{
-					if((readResult[0] & 0xFF) == 0x90)
+				if (readResult != null && readResult.length > 0) {
+					if ((readResult[0] & 0xFF) == 0x90)
 						break;
 				}
 				i++;
 			}
-		}catch(InterruptedException e)
-		{
+		} catch (InterruptedException e) {
 			doOutput(e.getMessage());
 		}
 	}
 
-
 	private boolean sendBslSync() {
 		byte data[] = new byte[1];
-		data[0] = (byte)0x80;
-		doOutput("BSLSync...");
+		data[0] = (byte) 0x80;
+		//doOutput("BSLSync...");
 		ftdiInterface.write(data, timeout);
 		byte[] resp = ftdiInterface.read(timeout);
-		if(resp.length > 0)
-		{
-			if(resp[0] == 0x90)
-			{
-				doOutput("BSLSync ACK");
+		if (resp.length > 0) {
+			if ((resp[0] & 0xFF) == 0x90) {
+				//doOutput("BSLSync ACK");
 				return true;
 			}
-				
+
 		}
+		doOutput("BSLSync failed");
 		return false;
 	}
 
 	private void sendResetSequence(boolean invokeBsl) {
-		if(invokeBsl)
-		{
-			telosWriteCmd((byte)0,(byte)1);
-			telosWriteCmd((byte)0,(byte)3);
-			telosWriteCmd((byte)0,(byte)1);
-			telosWriteCmd((byte)0,(byte)3);
-			telosWriteCmd((byte)0,(byte)2);
-			telosWriteCmd((byte)0,(byte)0);
-		}
-		else{
-			telosWriteCmd((byte)0,(byte)3);
-			telosWriteCmd((byte)0,(byte)2);
-			telosWriteCmd((byte)0,(byte)0);
-	        try {
+		if (invokeBsl) {
+			telosWriteCmd((byte) 0, (byte) 1);
+			telosWriteCmd((byte) 0, (byte) 3);
+			telosWriteCmd((byte) 0, (byte) 1);
+			telosWriteCmd((byte) 0, (byte) 3);
+			telosWriteCmd((byte) 0, (byte) 2);
+			telosWriteCmd((byte) 0, (byte) 0);
+		} else {
+			telosWriteCmd((byte) 0, (byte) 3);
+			telosWriteCmd((byte) 0, (byte) 2);
+			telosWriteCmd((byte) 0, (byte) 0);
+			try {
 				Thread.sleep(250);
 			} catch (InterruptedException e) {
-				
+
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
-	
+
 	private void telosStop() {
 		ftdiInterface.setDTR(true);
 		ftdiInterface.setRTS(false);
@@ -641,15 +608,15 @@ public class SendReceiverThreadMSP430 extends Thread {
 	}
 
 	private void telosWriteByte(byte dataByte) {
-		telosWriteBit( ( dataByte & 0x80) > 0 );
-        telosWriteBit( ( dataByte & 0x40) > 0 );
-        telosWriteBit( ( dataByte & 0x20) > 0);
-        telosWriteBit( ( dataByte & 0x10) > 0);
-        telosWriteBit( ( dataByte & 0x08) > 0);
-        telosWriteBit( ( dataByte & 0x04) > 0);
-        telosWriteBit( ( dataByte & 0x02) > 0);
-        telosWriteBit( ( dataByte & 0x01) > 0);
-        telosWriteBit( false );  // "acknowledge"
+		telosWriteBit((dataByte & 0x80) > 0);
+		telosWriteBit((dataByte & 0x40) > 0);
+		telosWriteBit((dataByte & 0x20) > 0);
+		telosWriteBit((dataByte & 0x10) > 0);
+		telosWriteBit((dataByte & 0x08) > 0);
+		telosWriteBit((dataByte & 0x04) > 0);
+		telosWriteBit((dataByte & 0x02) > 0);
+		telosWriteBit((dataByte & 0x01) > 0);
+		telosWriteBit(false); // "acknowledge"
 	}
 
 	private void telosStart() {
@@ -657,53 +624,43 @@ public class SendReceiverThreadMSP430 extends Thread {
 		ftdiInterface.setRTS(false);
 		ftdiInterface.setDTR(true);
 	}
-	
-	
 
-	
-	private void telosWriteBit(boolean bit)
-	{
-		try
-		{
+	private void telosWriteBit(boolean bit) {
+		try {
 			ftdiInterface.setRTS(true);
 			ftdiInterface.setDTR(!bit);
-			Thread.sleep(0,2);
+			Thread.sleep(0, 2);
 			ftdiInterface.setRTS(false);
-			Thread.sleep(0,1);
+			Thread.sleep(0, 1);
 			ftdiInterface.setRTS(true);
-		} 
-		catch (InterruptedException e)
-		{
-		
+		} catch (InterruptedException e) {
+
 			e.printStackTrace();
 		}
 	}
-	
-	private void telosWriteCmd(byte addr, byte cmd)
-	{
+
+	private void telosWriteCmd(byte addr, byte cmd) {
 		telosStart();
-		telosWriteByte((byte)(0x90 | (addr << 1)));
+		telosWriteByte((byte) (0x90 | (addr << 1)));
 		telosWriteByte(cmd);
 		telosStop();
 	}
-	
-	private void doOutput(final String msg)
-	{
-		if(this.context == null)
+
+	private void doOutput(final String msg) {
+		if (this.context == null)
 			return;
-		
-        //do something before you send the message
+
+		// do something before you send the message
 		Handler handler = context.getUiHandler();
-    	Bundle data = new Bundle();
+		Bundle data = new Bundle();
 		data.putString(null, msg);
 		Message message = handler.obtainMessage();
 		message.setData(data);
-		
+
 		handler.sendMessage(message);
 	}
-	
-	public void setContext(AndroidWSNControllerActivity context)
-	{
+
+	public void setContext(AndroidWSNControllerActivity context) {
 		this.context = context;
 	}
 }

@@ -1,21 +1,16 @@
 package de.rwth.comsys;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
-import android.content.Context;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.os.Environment;
 import android.widget.TextView;
 import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
-import de.rwth.comsys.Enums.MSP430Variants;
+import de.rwth.comsys.Enums.MSP430Variant;
 import de.rwth.comsys.Enums.MSP430_Commands;
 
 /**
@@ -37,6 +32,7 @@ public class TelosBConnector {
 	private ArrayList<MSP430Command> commandList;
 	private byte[] password;
 	private final int PASSWORD_LENGTH = 32;
+	private MSP430Variant deviceVariant = null;
 	private AndroidWSNControllerActivity context;
 	
 	public TelosBConnector(UsbManager usbManager, AndroidWSNControllerActivity parentActivity)
@@ -94,7 +90,8 @@ public class TelosBConnector {
 			commandList.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD, MSP430PacketFactory.createSetPasswordCommand(this.password)));
 			//commandList.add(new MSP430Command(MSP430_Commands.TX_BSL_VERSION));
 			//TODO request variant
-			//commandList.add(new MSP430Command(MSP430_Commands.CHANGE_BAUDRATE, FTDI232BM_Matching_MSP430_Baudrates.BAUDRATE_38400, MSP430Variants.F2131));
+			commandList.add(new MSP430Command(MSP430_Commands.CHANGE_BAUDRATE, FTDI232BM_Matching_MSP430_Baudrates.BAUDRATE_38400, MSP430Variant.MSP430_F161x));
+			//commandList.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD, MSP430PacketFactory.createSetPasswordCommand(this.password)));
 			commandList.add(new MSP430Command(MSP430_Commands.FLASH, records));
 			commandList.add(new MSP430Command(MSP430_Commands.LOAD_PC, Record.getStartAddress(records)));
 			startExecutionThread();
@@ -229,9 +226,20 @@ public class TelosBConnector {
 	public void setPassword(byte[] password) {
 		this.password = password;
 	}
-	
-	
-	
-	
 
+	public void execGetBslVersion() throws Exception {
+		textView.append("exec getBslVersion\n");
+		if(mDeviceConnection != null)
+		{
+			commandList.clear();
+			commandList.add(new MSP430Command(MSP430_Commands.TX_BSL_VERSION));
+			startExecutionThread();
+		}
+		else
+			throw new Exception("No Connection available");		
+	}
+
+	public synchronized void setDeviceVariant(MSP430Variant variant) {
+		this.deviceVariant = variant;
+	}
 }

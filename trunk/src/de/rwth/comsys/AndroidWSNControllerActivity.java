@@ -45,15 +45,17 @@ public class AndroidWSNControllerActivity extends Activity {
 		myButtonSend.setOnClickListener(buttonSendListener);
 		Button myButtonLoad = (Button) findViewById(R.id.button2);
 		myButtonLoad.setOnClickListener(buttonLoadListener);
+		Button getVersionButton = (Button) findViewById(R.id.button3);
+		getVersionButton.setOnClickListener(getBSLVersionListener);
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
 
 		// retrieve USB Service
 		mManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-		
+
 		// create a ui handler for display updates from another thread
 		uiHandler = new OutputHandler(textView);
-		
+
 		// listen for new devices
 		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
 				ACTION_USB_PERMISSION), 0);
@@ -63,7 +65,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		telosBConnect = new TelosBConnector(mManager, this);
 		textView.append("telosBConnector created\n");
 	}
-	
+
 	/**
 	 * @return the uiHandler
 	 */
@@ -90,11 +92,30 @@ public class AndroidWSNControllerActivity extends Activity {
 		}
 	};
 
+	// OnClickListener iterates over connected devices and requests permission
+	private OnClickListener getBSLVersionListener = new OnClickListener() {
+		public void onClick(View v) {
+			try {
+				telosBConnect.execGetBslVersion();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				textView.append(e.getMessage() + "\n");
+			}
+		}
+	};
+
 	// OnClickListener sends a packet to mDevice
 	private OnClickListener buttonSendListener = new OnClickListener() {
 		public void onClick(View v) {
 			try {
-				telosBConnect.execFlash((new HexLoader(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "WSN" +  File.separator + "main.ihex")).getRecords());
+				telosBConnect
+						.execFlash((new HexLoader(Environment
+								.getExternalStorageDirectory()
+								.getAbsolutePath()
+								+ File.separator
+								+ "WSN"
+								+ File.separator
+								+ "main.ihex")).getRecords());
 			} catch (Exception e) {
 				textView.append(e.getMessage() + "\n");
 			}
@@ -104,13 +125,13 @@ public class AndroidWSNControllerActivity extends Activity {
 	// OnClickListener sends a packet to mDevice
 	private OnClickListener buttonLoadListener = new OnClickListener() {
 		public void onClick(View v) {
-			HexLoader test = new HexLoader(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "WSN" +  File.separator + "main.ihex");
-			textView.append("Loaded lines: "+test.getRecords().size());
+			HexLoader test = new HexLoader(Environment
+					.getExternalStorageDirectory().getAbsolutePath()
+					+ File.separator + "WSN" + File.separator + "main.ihex");
+			textView.append("Loaded lines: " + test.getRecords().size());
 		}
 	};
-	
-	
-	
+
 	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
@@ -149,15 +170,18 @@ public class AndroidWSNControllerActivity extends Activity {
 	public TextView getOutputTextView() {
 		return textView;
 	}
-	
-	Runnable getOutputRunnable()
-	{
-		Runnable act = new Runnable()
-		{
+
+	Runnable getOutputRunnable() {
+		Runnable act = new Runnable() {
 			public void run() {
 				textView.append("blaslgq\n");
 			};
 		};
-       return act;
+		return act;
+	}
+	
+	public TelosBConnector getTelosBConnecter()
+	{
+		return this.telosBConnect;
 	}
 }

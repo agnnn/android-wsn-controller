@@ -286,7 +286,7 @@ public class FTDI_Interface {
 				}
 
 				curTime = new Date().getTime();
-				Thread.sleep(500);
+				Thread.sleep(5);
 			} while ((curTime - startTime < timeout) && (curRead != -1)); 
 			
 

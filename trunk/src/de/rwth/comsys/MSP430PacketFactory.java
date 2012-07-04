@@ -1,10 +1,7 @@
 package de.rwth.comsys;
 
-import java.nio.ByteBuffer;
-
-
 import de.rwth.comsys.Enums.FTDI232BM_Matching_MSP430_Baudrates;
-import de.rwth.comsys.Enums.MSP430Variants;
+import de.rwth.comsys.Enums.MSP430Variant;
 
 /**
  * Used to create packets for MSP430 device (serial standard protocol). 
@@ -181,7 +178,7 @@ public class MSP430PacketFactory {
 	 * @param startAddress 16-bit address < 1FF
 	 * @return packet to send or null if input was wrong
 	 */
-	public static byte[] createChangeBaudrateCommand(FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variants variant)
+	public static byte[] createChangeBaudrateCommand(FTDI232BM_Matching_MSP430_Baudrates baudrate, MSP430Variant variant)
 	{	
 		// HEADER, CMD, L1, L2, AL, AH, LL, LH, CKL, CKH, ACK
 		int countOfAllBytes = 11; 
@@ -194,9 +191,9 @@ public class MSP430PacketFactory {
 		short ah = 0;
 		short ll = 0;
 		
-		switch(variant)
+		/*switch(variant)
 		{
-			case F149:
+			case MSP430_F149:
 				switch (baudrate)
 				{
 				case BAUDRATE_9600:
@@ -218,7 +215,7 @@ public class MSP430PacketFactory {
 					return null;
 				}
 				break;
-			case F449:
+			case MSP430_F449:
 				switch (baudrate)
 				{
 				case BAUDRATE_9600:
@@ -240,7 +237,7 @@ public class MSP430PacketFactory {
 					return null;
 				}
 				break;
-			case F2131:
+			case MSP430_F2131:
 				switch (baudrate)
 				{
 				case BAUDRATE_9600:
@@ -265,15 +262,15 @@ public class MSP430PacketFactory {
 			default:
 				return null;
 				
-		}
+		}*/
 		
 		result[0]  = 0x80; 				//HEADER
 		result[1]  = 0x20; 				//CMD
 		result[2]  = 0x04;	 			//L1: Number of bytes consisting of AL through Dn. Restrictions: L1 = L2, L1 < 250, L1 even
-		result[3]  = result[2];			//L2:= L1
-		result[4]  = al; 				//AL
-		result[5]  = ah; 				//AH
-		result[6]  = ll; 				//LL 
+		result[3]  = 0x04;				//L2:= L1
+		result[4]  = 0xE0; 				//AL
+		result[5]  = 0x87; 				//AH
+		result[6]  = 0x02; 				//LL 
 		result[7]  = 0x00;				//LH: always 0
 		result[8]  = getCKL(result); 
 		result[9]  = getCKH(result); 
