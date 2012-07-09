@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello World, AndroidWSNControllerActivity!</string>
+    <string name="app_name">Android WSN Controller</string>
+    <string name="output">&quot;&quot;</string>
+
+</resources>
