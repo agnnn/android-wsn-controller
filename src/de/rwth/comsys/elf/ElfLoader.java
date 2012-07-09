@@ -5,8 +5,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+
+import de.rwth.comsys.Record;
+import de.rwth.comsys.Enums.RecordTypes;
 
 /**
  * Loads a ELF file and parses the file. Limited to files smaller than the max value of
@@ -20,6 +24,7 @@ public class ElfLoader
 
 	private byte[] loadedFile = null;
 	private Header header = null;
+	private ArrayList<ProgramHeader> programHeaders = null;
 	private ArrayList<SectionHeader> sectionHeaders = null;
 	private ArrayList<byte[]> sectionDataArrays = null;
 	private HashMap<Integer, String> sectionHeaderNames = null;
@@ -83,6 +88,16 @@ public class ElfLoader
 			return;
 		}
 
+		// parse program headers
+		programHeaders = parseProgramHeader((int) header.getProgramHeaderTableFileOffset(),
+				header.getProgramHeaderTableEntrySize() * header.getProgramHeaderTableEntryCount(),
+				header.getProgramHeaderTableEntrySize());
+		if (header == null)
+		{
+			errorHandler(ELFErrorCode.ELF_PARSE_PROGRAM_HEADERS_ERROR);
+			return;
+		}
+				
 		// parse section headers
 		sectionHeaders = parseSectionHeader((int) header.getSectionHeaderTableFileOffset(),
 				header.getSectionHeaderTableEntrySize() * header.getSectionHeaderTableEntryCount(),
@@ -182,11 +197,51 @@ public class ElfLoader
 			currentSymbolTableEntry.setName(name);
 		}
 		
-		// fill data arrays
-		
-		
 	}
 
+	public ArrayList<Record> createIhexRecords()
+	{
+		ArrayList<Record> result = new ArrayList<Record>();
+		int startAddress = (int)header.getEntryPointAddress();
+		boolean firstSegmentPassed = false;
+		for (ProgramHeader curHeader : programHeaders) {
+			
+			if(curHeader.getType() == 1) // PC_LOAD
+			{
+				long offset = curHeader.getOffset();
+				long size = curHeader.getFileSize();
+				byte[] currentSegment = Arrays.copyOfRange(loadedFile, (int)offset, (int)(offset+size));
+				int processed = currentSegment.length;
+				
+				
+				for (int i = 0; i < currentSegment.length; i += 16) {
+					byte[] dataChunk;
+					if(processed > 16)
+					{
+						dataChunk = Arrays.copyOfRange(currentSegment, i, i + 16);
+						processed -= 16;
+					}
+					else
+					{
+						dataChunk = Arrays.copyOfRange(currentSegment, i, i+processed);
+					}
+					
+					
+					if(!firstSegmentPassed)
+					{
+						byte[] littleEndian = createLittleEndianIntArrayByValue(startAddress);
+						Record record = Record.createRecord(16, littleEndian[1] , littleEndian[0], RecordTypes.DATA_RECORD, dataChunk, checksum);
+					}
+					else
+					{
+						Record record = Record.createRecord(16, addressHighByte, addressLowByte, recordType, data, checksum);
+					}
+				}
+				
+			}
+		}
+		return result;
+	}
 
 
 
@@ -303,6 +358,45 @@ public class ElfLoader
 
 
 
+	/**
+	 * Parses section headers of ELF. Parse ELF header at first to get sectionHeaderSize
+	 * etc..
+	 * 
+	 * @param offset
+	 * @param sectionLength
+	 * @param sectionHeaderSize
+	 * @return
+	 */
+	private ArrayList<ProgramHeader> parseProgramHeader(int offset, int sectionLength, int programHeaderSize)
+	{
+		ArrayList<ProgramHeader> programHeaders = new ArrayList<ProgramHeader>();
+
+		for (int i = offset; (i < this.loadedFile.length) && (i < sectionLength + offset); i = i + programHeaderSize)
+		{
+			ProgramHeader currentHeader = new ProgramHeader();
+
+			currentHeader.setType(getValue(i, 4));
+			currentHeader.setOffset(getValue(i + 4, 4));
+			currentHeader.setVirtualAddress(getValue(i + 8, 4));
+			currentHeader.setPhysicalAddress(getValue(i + 12, 4));
+			currentHeader.setFileSize(getValue(i + 16, 4));
+			currentHeader.setMemorySize(getValue(i + 20, 4));
+			currentHeader.setFlags(getValue(i + 24, 4));
+			currentHeader.setAlignment(getValue(i + 28, 4));
+
+			// parsed successful?
+			if (currentHeader.hasNoNullAttribute())
+			{
+				programHeaders.add(currentHeader);
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		return programHeaders;
+	}
 
 	/**
 	 * Parses section headers of ELF. Parse ELF header at first to get sectionHeaderSize
@@ -561,7 +655,6 @@ public class ElfLoader
 		for (int i = 0; i < result.length; i++)
 		{
 			result[i] = temp[result.length - i - 1];
-
 		}
 
 		return result;
