@@ -130,7 +130,7 @@ public class HexLoader {
 		short addressLowByte;
 		RecordTypes recordType;
 		short[] data;
-		short checksum;
+		
 		
 		//split line into characters
 		for(int i= 0; i < row.length(); i++)
@@ -180,10 +180,10 @@ public class HexLoader {
 				j = j + 2;
 			}
 			
-			checksum = Short.decode("0x"+ new String(splittedRow, splittedRow.length - 2, 2));
+			
 			
 			//create record and check checksum
-			Record record = Record.createRecord(byteCount, addressHighByte, addressLowByte, recordType, data, checksum);
+			Record record = Record.createRecord(byteCount, addressHighByte, addressLowByte, recordType, data);
 			
 			//successfully created?
 			if(record == null)

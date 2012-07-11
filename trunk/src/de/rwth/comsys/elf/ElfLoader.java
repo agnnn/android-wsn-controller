@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import de.rwth.comsys.ByteConverter;
 import de.rwth.comsys.Record;
 import de.rwth.comsys.Enums.RecordTypes;
 
@@ -89,15 +90,15 @@ public class ElfLoader
 		}
 
 		// parse program headers
-		programHeaders = parseProgramHeader((int) header.getProgramHeaderTableFileOffset(),
+		programHeaders = parseProgramHeaders((int) header.getProgramHeaderTableFileOffset(),
 				header.getProgramHeaderTableEntrySize() * header.getProgramHeaderTableEntryCount(),
 				header.getProgramHeaderTableEntrySize());
-		if (header == null)
+		if (programHeaders == null)
 		{
 			errorHandler(ELFErrorCode.ELF_PARSE_PROGRAM_HEADERS_ERROR);
 			return;
 		}
-				
+
 		// parse section headers
 		sectionHeaders = parseSectionHeader((int) header.getSectionHeaderTableFileOffset(),
 				header.getSectionHeaderTableEntrySize() * header.getSectionHeaderTableEntryCount(),
@@ -196,52 +197,105 @@ public class ElfLoader
 			String name = symbolTableEntryNames.get(key);
 			currentSymbolTableEntry.setName(name);
 		}
-		
+
 	}
 
+
+
+
+	/**
+	 * Creates a list of records to flash. Filters ELF segments to get important data by
+	 * program header type "PC_LOAD".
+	 * 
+	 * @return list of records
+	 */
 	public ArrayList<Record> createIhexRecords()
 	{
 		ArrayList<Record> result = new ArrayList<Record>();
-		int startAddress = (int)header.getEntryPointAddress();
+		Record record = null;
+		byte[] littleEndian = null;
+		byte[] dataChunk = null;
+		byte[] currentSegment = null;
+		long offset = 0;
+		long size = 0;
+
+		// first PC_LOAD segment can have wrong physical start address,
+		// because of page size... see ELF documentation.
+		int startAddress = (int) header.getEntryPointAddress();
 		boolean firstSegmentPassed = false;
-		for (ProgramHeader curHeader : programHeaders) {
-			
-			if(curHeader.getType() == 1) // PC_LOAD
-			{
-				long offset = curHeader.getOffset();
-				long size = curHeader.getFileSize();
-				byte[] currentSegment = Arrays.copyOfRange(loadedFile, (int)offset, (int)(offset+size));
-				int processed = currentSegment.length;
-				
-				
-				for (int i = 0; i < currentSegment.length; i += 16) {
-					byte[] dataChunk;
-					if(processed > 16)
-					{
-						dataChunk = Arrays.copyOfRange(currentSegment, i, i + 16);
-						processed -= 16;
-					}
-					else
-					{
-						dataChunk = Arrays.copyOfRange(currentSegment, i, i+processed);
-					}
-					
-					
-					if(!firstSegmentPassed)
-					{
-						byte[] littleEndian = createLittleEndianIntArrayByValue(startAddress);
-						Record record = Record.createRecord(16, littleEndian[1] , littleEndian[0], RecordTypes.DATA_RECORD, dataChunk, checksum);
-					}
-					else
-					{
-						Record record = Record.createRecord(16, addressHighByte, addressLowByte, recordType, data, checksum);
-					}
+
+		for (ProgramHeader curHeader : programHeaders)
+		{
+
+			if (curHeader.getType() == 1) // PC_LOAD
+			{	
+				// MSP430 compiler fault -> hardcoded
+				if (!firstSegmentPassed)
+				{
+					offset = 0x94;
+					size = curHeader.getFileSize() - 0x94;
+				}
+				else
+				{
+					offset = curHeader.getOffset();
+					size = curHeader.getFileSize();
 				}
 				
+				
+				
+				currentSegment = Arrays.copyOfRange(loadedFile, (int) offset, (int) (offset + size));
+				int processedBytes = currentSegment.length;
+
+				// split segment into records
+				for (int i = 0; i < currentSegment.length; i += 16)
+				{
+
+					if (processedBytes > 16)
+					{
+						dataChunk = Arrays.copyOfRange(currentSegment, i, i + 16);
+						processedBytes -= 16;
+					}
+					else
+					{
+						dataChunk = Arrays.copyOfRange(currentSegment, i, i + processedBytes);
+					}
+
+					// ensure correct start address
+					if (!firstSegmentPassed)
+					{	
+						// MSP430 compiler fault -> hardcoded
+						offset = 0x94;
+						littleEndian = createLittleEndianIntArrayByValue(startAddress + i);
+		
+					}
+					else
+					{
+						littleEndian = createLittleEndianIntArrayByValue((int) (curHeader.getPhysicalAddress() + i));
+
+					}
+					record = Record.createRecord((short) dataChunk.length, (short) littleEndian[1],
+							(short) littleEndian[0], RecordTypes.DATA_RECORD,
+							ByteConverter.convertByteArrayToShortArray(dataChunk));
+
+					result.add(record);
+				}
+
+				firstSegmentPassed = true;
+
 			}
 		}
+
+		// Start Segment Address Record
+		record = Record.createStartSegmentAddressRecord(0, startAddress);
+		result.add(record);
+
+		// End Of File Record
+		record = Record.createEndOfFileRecord();
+		result.add(record);
+
 		return result;
 	}
+
 
 
 
@@ -335,7 +389,7 @@ public class ElfLoader
 			byte currentByte = valuesToWrite[i];
 			loadedFile[var.getFileOffset() + i] = currentByte;
 		}
-
+		// TODO write zeros if size is large than 4 bytes
 		try
 		{
 
@@ -358,6 +412,7 @@ public class ElfLoader
 
 
 
+
 	/**
 	 * Parses section headers of ELF. Parse ELF header at first to get sectionHeaderSize
 	 * etc..
@@ -367,7 +422,7 @@ public class ElfLoader
 	 * @param sectionHeaderSize
 	 * @return
 	 */
-	private ArrayList<ProgramHeader> parseProgramHeader(int offset, int sectionLength, int programHeaderSize)
+	private ArrayList<ProgramHeader> parseProgramHeaders(int offset, int sectionLength, int programHeaderSize)
 	{
 		ArrayList<ProgramHeader> programHeaders = new ArrayList<ProgramHeader>();
 
@@ -397,6 +452,9 @@ public class ElfLoader
 
 		return programHeaders;
 	}
+
+
+
 
 	/**
 	 * Parses section headers of ELF. Parse ELF header at first to get sectionHeaderSize
@@ -670,6 +728,7 @@ public class ElfLoader
 	 */
 	private void errorHandler(ELFErrorCode error)
 	{
+		// TODO add all errors
 		switch (error)
 		{
 		case ELF_FILE_TOO_LARGE:
@@ -723,8 +782,5 @@ public class ElfLoader
 	{
 		return header;
 	}
-
-
-
 
 }

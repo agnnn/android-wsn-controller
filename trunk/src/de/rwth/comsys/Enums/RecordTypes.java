@@ -1,5 +1,6 @@
 package de.rwth.comsys.Enums;
 
+
 /**
  * Record types of Intel Hex I16HEX format.
  * @author Christian, Stephan
