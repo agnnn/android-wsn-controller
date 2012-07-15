@@ -68,8 +68,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param value
-	 *            the value to set
+	 * @param value the value to set
 	 */
 	public void setValue(long value)
 	{
@@ -91,8 +90,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param size
-	 *            the size to set
+	 * @param size the size to set
 	 */
 	public void setSize(long size)
 	{
@@ -114,8 +112,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param info
-	 *            the info to set
+	 * @param info the info to set
 	 */
 	public void setInfo(short info)
 	{
@@ -137,8 +134,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param other
-	 *            the other to set
+	 * @param other the other to set
 	 */
 	public void setOther(short other)
 	{
@@ -160,8 +156,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param sectionIndex
-	 *            the sectionIndex to set
+	 * @param sectionIndex the sectionIndex to set
 	 */
 	public void setSectionIndex(int sectionIndex)
 	{
@@ -183,8 +178,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param name
-	 *            the name to set
+	 * @param name the name to set
 	 */
 	public void setName(String name)
 	{
@@ -206,8 +200,7 @@ public class SymbolTableEntry
 
 
 	/**
-	 * @param offsetInStringTable
-	 *            the offsetInStringTable to set
+	 * @param offsetInStringTable the offsetInStringTable to set
 	 */
 	public void setOffsetInStringTable(long offsetInStringTable)
 	{

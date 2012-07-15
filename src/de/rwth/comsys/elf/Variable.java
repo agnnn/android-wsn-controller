@@ -4,7 +4,8 @@
 package de.rwth.comsys.elf;
 
 /**
- * Data structure for a variable, its position in file and its size in bytes. -1 reflects null.
+ * Data structure for a variable, its position in file and its size in bytes. -1 reflects
+ * null.
  * 
  * @author Christian & Stephan
  * 
@@ -75,8 +76,7 @@ public class Variable
 
 
 	/**
-	 * @param name
-	 *            the name to set
+	 * @param name the name to set
 	 */
 	public void setName(String name)
 	{
@@ -98,8 +98,7 @@ public class Variable
 
 
 	/**
-	 * @param fileOffset
-	 *            the fileOffset to set
+	 * @param fileOffset the fileOffset to set
 	 */
 	public void setFileOffset(int fileOffset)
 	{
@@ -121,8 +120,7 @@ public class Variable
 
 
 	/**
-	 * @param sizeInBytes
-	 *            the sizeInBytes to set
+	 * @param sizeInBytes the sizeInBytes to set
 	 */
 	public void setSizeInBytes(int sizeInBytes)
 	{
@@ -144,8 +142,7 @@ public class Variable
 
 
 	/**
-	 * @param value
-	 *            the value to set
+	 * @param value the value to set
 	 */
 	public void setValue(int value)
 	{

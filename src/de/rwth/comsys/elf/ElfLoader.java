@@ -9,13 +9,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import de.rwth.comsys.ByteConverter;
-import de.rwth.comsys.Record;
-import de.rwth.comsys.Enums.RecordTypes;
+import android.os.Environment;
+
+import de.rwth.comsys.enums.ELFErrorCode;
+import de.rwth.comsys.enums.RecordTypes;
+import de.rwth.comsys.helpers.ByteConverter;
+import de.rwth.comsys.ihex.Record;
 
 /**
- * Loads a ELF file and parses the file. Limited to files smaller than the max value of
- * Integers in Bytes.
+ * Used to load a ELF file from external storage and to parse the file. 
+ * Limited to files smaller than the max value of Integers in Bytes.
  * 
  * @author Christian & Stephan
  * 
@@ -33,18 +36,26 @@ public class ElfLoader
 	private ArrayList<SymbolTableEntry> symbolTableEntries = null;
 
 
-
+	private ElfLoader(){}
+	
+	
 
 	/**
-	 * Loads a ELF file and parses the file. Sets attributes if nothing goes wrong.
+	 * Loads a ELF file and parses the file.
 	 * 
 	 * @param pathName
-	 * 
+	 * @return ElfLoader or null if error occurs
 	 */
-	public ElfLoader(String pathName)
+	public static ElfLoader createElfLoader(String pathName)
 	{
 		int offset = 0;
 		int sectionLength = 0;
+		ElfLoader newElfLoader = new ElfLoader();
+		
+		// check access to storage
+		if (newElfLoader.checkAccessToExternalStorage() == false)
+			return null;
+		
 		File file = new File(pathName);
 		FileInputStream input;
 
@@ -54,14 +65,14 @@ public class ElfLoader
 
 		} catch (Exception e)
 		{
-			return;
+			return null;
 		}
 
 		// should never happen, because we are dealing with MCUs
 		if (file.length() > Integer.MAX_VALUE)
 		{
-			errorHandler(ELFErrorCode.ELF_FILE_TOO_LARGE);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_FILE_TOO_LARGE);
+			return null;
 		}
 
 		byte[] buffer = new byte[(int) file.length()];
@@ -70,69 +81,69 @@ public class ElfLoader
 		{
 			// fill buffer
 			if (input.read(buffer) == -1)
-				return;
+				return null;
 
 			input.close();
 
 		} catch (Exception e)
 		{
-			return;
+			return null;
 		}
 
-		loadedFile = buffer;
+		newElfLoader.loadedFile = buffer;
 
 		// parse header
-		header = parseElfHeader();
-		if (header == null || !header.hasNoNullAttribute())
+		newElfLoader.header = newElfLoader.parseElfHeader();
+		if (newElfLoader.header == null || !newElfLoader.header.hasNoNullAttribute())
 		{
-			errorHandler(ELFErrorCode.ELF_PARSE_HEADER_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_HEADER_ERROR);
+			return null;
 		}
 
 		// parse program headers
-		programHeaders = parseProgramHeaders((int) header.getProgramHeaderTableFileOffset(),
-				header.getProgramHeaderTableEntrySize() * header.getProgramHeaderTableEntryCount(),
-				header.getProgramHeaderTableEntrySize());
-		if (programHeaders == null)
+		newElfLoader.programHeaders = newElfLoader.parseProgramHeaders((int) newElfLoader.header.getProgramHeaderTableFileOffset(),
+				newElfLoader.header.getProgramHeaderTableEntrySize() * newElfLoader.header.getProgramHeaderTableEntryCount(),
+				newElfLoader.header.getProgramHeaderTableEntrySize());
+		if (newElfLoader.programHeaders == null)
 		{
-			errorHandler(ELFErrorCode.ELF_PARSE_PROGRAM_HEADERS_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_PROGRAM_HEADERS_ERROR);
+			return null;
 		}
 
 		// parse section headers
-		sectionHeaders = parseSectionHeader((int) header.getSectionHeaderTableFileOffset(),
-				header.getSectionHeaderTableEntrySize() * header.getSectionHeaderTableEntryCount(),
-				header.getSectionHeaderTableEntrySize());
-		if (header == null)
+		newElfLoader.sectionHeaders = newElfLoader.parseSectionHeader((int) newElfLoader.header.getSectionHeaderTableFileOffset(),
+				newElfLoader.header.getSectionHeaderTableEntrySize() * newElfLoader.header.getSectionHeaderTableEntryCount(),
+				newElfLoader.header.getSectionHeaderTableEntrySize());
+		if (newElfLoader.header == null)
 		{
-			errorHandler(ELFErrorCode.ELF_PARSE_SECTION_HEADERS_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_SECTION_HEADERS_ERROR);
+			return null;
 		}
 
 		// parse section header names
-		SectionHeader stringTableSectionHeader = sectionHeaders.get(header.getSectionHeaderStringTableIndex());
+		SectionHeader stringTableSectionHeader = newElfLoader.sectionHeaders.get(newElfLoader.header.getSectionHeaderStringTableIndex());
 		offset = (int) stringTableSectionHeader.getSectionFileOffset();
 		sectionLength = (int) stringTableSectionHeader.getSectionSize();
-		sectionHeaderNames = parseStringTable(offset, sectionLength);
-		if (sectionHeaderNames == null)
+		newElfLoader.sectionHeaderNames = newElfLoader.parseStringTable(offset, sectionLength);
+		if (newElfLoader.sectionHeaderNames == null)
 		{
-			errorHandler(ELFErrorCode.ELF_PARSE_SECTION_HEADERS_NAMES_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_SECTION_HEADERS_NAMES_ERROR);
+			return null;
 		}
 
 		// solve name by offsetInStringTable and sectionHeaderNames
-		for (Iterator<SectionHeader> iterator = sectionHeaders.iterator(); iterator.hasNext();)
+		for (Iterator<SectionHeader> iterator = newElfLoader.sectionHeaders.iterator(); iterator.hasNext();)
 		{
 			SectionHeader currentSectionHeader = iterator.next();
 			Integer key = (int) (stringTableSectionHeader.getSectionFileOffset() + currentSectionHeader
 					.getOffsetInStringTable());
-			currentSectionHeader.setName(sectionHeaderNames.get(key));
+			currentSectionHeader.setName(newElfLoader.sectionHeaderNames.get(key));
 		}
 
 		// search symbolTableSection by symbolTableHeader
 		SectionHeader symbolTableSectionHeader = null;
 		String symtab = ".symtab";
-		for (Iterator<SectionHeader> iterator = sectionHeaders.iterator(); iterator.hasNext();)
+		for (Iterator<SectionHeader> iterator = newElfLoader.sectionHeaders.iterator(); iterator.hasNext();)
 		{
 			SectionHeader currentSectionHeader = iterator.next();
 
@@ -144,25 +155,25 @@ public class ElfLoader
 		}
 		if (symbolTableSectionHeader == null)
 		{
-			errorHandler(ELFErrorCode.ELF_SYMTABLE_SECTION_HEADER_NOT_FOUND_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_SYMTABLE_SECTION_HEADER_NOT_FOUND_ERROR);
+			return null;
 		}
 
 		// parse symbolTable Section
 		offset = (int) symbolTableSectionHeader.getSectionFileOffset();
 		sectionLength = (int) symbolTableSectionHeader.getSectionSize();
 		int symbolTableEntrySize = (int) symbolTableSectionHeader.getFixedTableEntrySize();
-		symbolTableEntries = parseSymbolTable(offset, sectionLength, symbolTableEntrySize);
-		if (symbolTableEntries == null)
+		newElfLoader.symbolTableEntries = newElfLoader.parseSymbolTable(offset, sectionLength, symbolTableEntrySize);
+		if (newElfLoader.symbolTableEntries == null)
 		{
-			errorHandler(ELFErrorCode.ELF_PARSE_SYMTABLE_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_SYMTABLE_ERROR);
+			return null;
 		}
 
 		// search symbolTableNameSection by symbolTableNameHeader
 		SectionHeader symbolTableNameHeader = null;
 		String symbolTableNameSectionName = ".strtab";
-		for (Iterator<SectionHeader> iterator = sectionHeaders.iterator(); iterator.hasNext();)
+		for (Iterator<SectionHeader> iterator = newElfLoader.sectionHeaders.iterator(); iterator.hasNext();)
 		{
 			SectionHeader currentSectionHeader = iterator.next();
 
@@ -174,29 +185,31 @@ public class ElfLoader
 		}
 		if (symbolTableNameHeader == null)
 		{
-			errorHandler(ELFErrorCode.ELF_SYMTABLE_NAMES_SECTION_HEADER_NOT_FOUND_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_SYMTABLE_NAMES_SECTION_HEADER_NOT_FOUND_ERROR);
+			return null;
 		}
 
 		// parse symbolTableNames
 		offset = (int) symbolTableNameHeader.getSectionFileOffset();
 		sectionLength = (int) symbolTableNameHeader.getSectionSize();
-		symbolTableEntryNames = parseStringTable(offset, sectionLength);
-		if (symbolTableEntryNames == null)
+		newElfLoader.symbolTableEntryNames = newElfLoader.parseStringTable(offset, sectionLength);
+		if (newElfLoader.symbolTableEntryNames == null)
 		{
-			errorHandler(ELFErrorCode.ELF_PARSE_SYMBTABLE_ENTRY_NAMES_ERROR);
-			return;
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_SYMBTABLE_ENTRY_NAMES_ERROR);
+			return null;
 		}
 
 		// solve name by offsetInStringTable and sectionHeaderNames
-		for (Iterator<SymbolTableEntry> iterator = symbolTableEntries.iterator(); iterator.hasNext();)
+		for (Iterator<SymbolTableEntry> iterator = newElfLoader.symbolTableEntries.iterator(); iterator.hasNext();)
 		{
 			SymbolTableEntry currentSymbolTableEntry = iterator.next();
 			Integer key = (int) (symbolTableNameHeader.getSectionFileOffset() + currentSymbolTableEntry
 					.getOffsetInStringTable());
-			String name = symbolTableEntryNames.get(key);
+			String name = newElfLoader.symbolTableEntryNames.get(key);
 			currentSymbolTableEntry.setName(name);
 		}
+		
+		return newElfLoader;
 
 	}
 
@@ -228,7 +241,7 @@ public class ElfLoader
 		{
 
 			if (curHeader.getType() == 1) // PC_LOAD
-			{	
+			{
 				// MSP430 compiler fault -> hardcoded
 				if (!firstSegmentPassed)
 				{
@@ -240,9 +253,7 @@ public class ElfLoader
 					offset = curHeader.getOffset();
 					size = curHeader.getFileSize();
 				}
-				
-				
-				
+
 				currentSegment = Arrays.copyOfRange(loadedFile, (int) offset, (int) (offset + size));
 				int processedBytes = currentSegment.length;
 
@@ -262,11 +273,11 @@ public class ElfLoader
 
 					// ensure correct start address
 					if (!firstSegmentPassed)
-					{	
+					{
 						// MSP430 compiler fault -> hardcoded
 						offset = 0x94;
 						littleEndian = createLittleEndianIntArrayByValue(startAddress + i);
-		
+
 					}
 					else
 					{
@@ -362,7 +373,10 @@ public class ElfLoader
 		Variable var = getVariableBySymbolTableName(name);
 		if (var == null || var.hasNoNullAttribute() == false
 				|| (loadedFile.length < var.getSizeInBytes() + var.getFileOffset()))
+		{
+			errorHandler(ELFErrorCode.ELF_VARIABLE_INCORRECT);
 			return false;
+		}
 
 		// transform value to little endian format
 		byte[] valuesToWrite = createLittleEndianIntArrayByValue(value);
@@ -633,6 +647,7 @@ public class ElfLoader
 	/**
 	 * Prints loaded Bytes as HEX.
 	 */
+	@SuppressWarnings("unused")
 	private void printBytesAsHex()
 	{
 		String output = "";
@@ -761,6 +776,26 @@ public class ElfLoader
 		}
 	}
 
+		
+	/**
+	 * Checks if we can read/write to external storage.
+	 * 
+	 * @return boolean
+	 */
+	public boolean checkAccessToExternalStorage()
+	{
+		String state = Environment.getExternalStorageState();
+
+		if (Environment.MEDIA_MOUNTED.equals(state))
+		{
+			// We can read and write the media
+			return true;
+		}
+
+		// Can't read nor write
+		errorHandler(ELFErrorCode.ELFLOADER_NO_ACCESS_TO_STORAGE);
+		return false;
+	}
 
 
 

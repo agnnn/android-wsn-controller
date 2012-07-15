@@ -1,8 +1,8 @@
 package de.rwth.comsys.elf;
 
 /**
- * Data structure reflects a section header of ELF. value = -1 is equivalent to null. Info:
- * http://www.skyfree.org/linux/references/ELF_Format.pdf
+ * Data structure reflects a section header of ELF. value = -1 is equivalent to null.
+ * Info: http://www.skyfree.org/linux/references/ELF_Format.pdf
  * 
  * @author Christian & Stephan
  * 
@@ -92,8 +92,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param name
-	 *            the name to set
+	 * @param name the name to set
 	 */
 	public void setName(String name)
 	{
@@ -115,8 +114,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param sectionFileOffset
-	 *            the sectionFileOffset to set
+	 * @param sectionFileOffset the sectionFileOffset to set
 	 */
 	public void setSectionFileOffset(long sectionFileOffset)
 	{
@@ -138,8 +136,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param sectionSize
-	 *            the sectionSize to set
+	 * @param sectionSize the sectionSize to set
 	 */
 	public void setSectionSize(long sectionSize)
 	{
@@ -161,8 +158,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param offsetInStringTable
-	 *            the offsetInStringTable to set
+	 * @param offsetInStringTable the offsetInStringTable to set
 	 */
 	public void setOffsetInStringTable(long offsetInStringTable)
 	{
@@ -184,8 +180,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param type
-	 *            the type to set
+	 * @param type the type to set
 	 */
 	public void setType(long type)
 	{
@@ -207,8 +202,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param flags
-	 *            the flags to set
+	 * @param flags the flags to set
 	 */
 	public void setFlags(long flags)
 	{
@@ -230,8 +224,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param address
-	 *            the address to set
+	 * @param address the address to set
 	 */
 	public void setAddress(long address)
 	{
@@ -253,8 +246,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param linkToAnotherSection
-	 *            the linkToAnotherSection to set
+	 * @param linkToAnotherSection the linkToAnotherSection to set
 	 */
 	public void setLinkToAnotherSection(long linkToAnotherSection)
 	{
@@ -276,8 +268,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param info
-	 *            the info to set
+	 * @param info the info to set
 	 */
 	public void setInfo(long info)
 	{
@@ -299,8 +290,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param alignment
-	 *            the alignment to set
+	 * @param alignment the alignment to set
 	 */
 	public void setAlignment(long alignment)
 	{
@@ -322,8 +312,7 @@ public class SectionHeader
 
 
 	/**
-	 * @param fixedTableEntrySize
-	 *            the fixedTableEntrySize to set
+	 * @param fixedTableEntrySize the fixedTableEntrySize to set
 	 */
 	public void setFixedTableEntrySize(long fixedTableEntrySize)
 	{
