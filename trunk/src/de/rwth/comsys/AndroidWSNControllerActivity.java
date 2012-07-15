@@ -4,6 +4,11 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import de.rwth.comsys.helpers.IOHandler;
+import de.rwth.comsys.helpers.OutputHandler;
+import de.rwth.comsys.ihex.HexLoader;
+
+
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -22,7 +27,8 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
-public class AndroidWSNControllerActivity extends Activity {
+public class AndroidWSNControllerActivity extends Activity
+{
 
 	private UsbManager mManager = null;
 	private UsbDevice mDevice = null;
@@ -33,10 +39,14 @@ public class AndroidWSNControllerActivity extends Activity {
 	private TelosBConnector telosBConnect;
 	private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 
+
+
+
 	/** Called when the activity is first created. */
 	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		
+	public void onCreate(Bundle savedInstanceState)
+	{
+
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 		// get button and register listener
@@ -52,7 +62,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		startSFButton.setOnClickListener(startSFListener);
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
-		
+
 		// init io handler
 		IOHandler.setContext(this);
 
@@ -63,8 +73,7 @@ public class AndroidWSNControllerActivity extends Activity {
 		uiHandler = new OutputHandler(textView);
 
 		// listen for new devices
-		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
-				ACTION_USB_PERMISSION), 0);
+		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
 		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
 		registerReceiver(mUsbReceiver, filter);
 
@@ -72,16 +81,22 @@ public class AndroidWSNControllerActivity extends Activity {
 		textView.append("telosBConnector created\n");
 	}
 
+
+
+
 	/**
 	 * @return the uiHandler
 	 */
-	public Handler getUiHandler() {
+	public Handler getUiHandler()
+	{
 		return uiHandler;
 	}
 
 	// OnClickListener iterates over connected devices and requests permission
-	private OnClickListener buttonConnectListener = new OnClickListener() {
-		public void onClick(View v) {
+	private OnClickListener buttonConnectListener = new OnClickListener()
+	{
+		public void onClick(View v)
+		{
 
 			HashMap<String, UsbDevice> deviceList = mManager.getDeviceList();
 
@@ -89,21 +104,25 @@ public class AndroidWSNControllerActivity extends Activity {
 				textView.append("Nothing found! \n");
 
 			Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
-			while (deviceIterator.hasNext()) {
+			while (deviceIterator.hasNext())
+			{
 				mDevice = deviceIterator.next();
 				mManager.requestPermission(mDevice, mPermissionIntent);
-				textView.append("device: " + mDevice.getDeviceName()
-						+ " found\n");
+				textView.append("device: " + mDevice.getDeviceName() + " found\n");
 			}
 		}
 	};
 
 	// OnClickListener iterates over connected devices and requests permission
-	private OnClickListener getBSLVersionListener = new OnClickListener() {
-		public void onClick(View v) {
-			try {
+	private OnClickListener getBSLVersionListener = new OnClickListener()
+	{
+		public void onClick(View v)
+		{
+			try
+			{
 				telosBConnect.execGetBslVersion();
-			} catch (Exception e) {
+			} catch (Exception e)
+			{
 				// TODO Auto-generated catch block
 				textView.append(e.getMessage() + "\n");
 			}
@@ -111,55 +130,72 @@ public class AndroidWSNControllerActivity extends Activity {
 	};
 
 	// OnClickListener iterates over connected devices and requests permission
-	private OnClickListener startSFListener = new OnClickListener() {
-		public void onClick(View v) {
-			try {
+	private OnClickListener startSFListener = new OnClickListener()
+	{
+		public void onClick(View v)
+		{
+			try
+			{
 				telosBConnect.execSerialForwarder("2001");
-			} catch (Exception e) {
+			} catch (Exception e)
+			{
 				// TODO Auto-generated catch block
-				textView.append(e.getMessage() + "\n");
-			}			
-		}
-	};
-	// OnClickListener sends a packet to mDevice
-	private OnClickListener buttonSendListener = new OnClickListener() {
-		public void onClick(View v) {
-			try {
-				telosBConnect
-						.execFlash((new HexLoader(Environment
-								.getExternalStorageDirectory()
-								.getAbsolutePath()
-								+ File.separator
-								+ "WSN"
-								+ File.separator
-								+ "main.ihex")).getRecords());
-			} catch (Exception e) {
 				textView.append(e.getMessage() + "\n");
 			}
 		}
 	};
+	// OnClickListener sends a packet to mDevice
+	private OnClickListener buttonSendListener = new OnClickListener()
+	{
+		public void onClick(View v)
+		{
+			try
+			{
+				HexLoader hexLoader = HexLoader.createHexLoader(Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ File.separator + "WSN" + File.separator + "main.ihex");
+					telosBConnect.execFlash(hexLoader.getRecords());
+			} catch (Exception e)
+			{
+				textView.append(e.getMessage() + "\n");
+			}
+		}
+
+		
+	};
 
 	// OnClickListener sends a packet to mDevice
-	private OnClickListener buttonLoadListener = new OnClickListener() {
-		public void onClick(View v) {
-			HexLoader test = new HexLoader(Environment
-					.getExternalStorageDirectory().getAbsolutePath()
+	private OnClickListener buttonLoadListener = new OnClickListener()
+	{
+		public void onClick(View v)
+		{
+			HexLoader hexLoader = HexLoader.createHexLoader(Environment.getExternalStorageDirectory().getAbsolutePath()
 					+ File.separator + "WSN" + File.separator + "main.ihex");
-			textView.append("Loaded lines: " + test.getRecords().size());
+			if(hexLoader!=null)
+			{	
+				textView.append("Loaded lines: " + hexLoader.getRecords().size()+"\n");
+			}
+			else
+			{
+				textView.append("HexLoader == null\n");
+			}
 		}
 	};
 
-	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-		public void onReceive(Context context, Intent intent) {
+	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver()
+	{
+		public void onReceive(Context context, Intent intent)
+		{
 			String action = intent.getAction();
-			if (ACTION_USB_PERMISSION.equals(action)) {
-				synchronized (this) {
-					UsbDevice device = (UsbDevice) intent
-							.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+			if (ACTION_USB_PERMISSION.equals(action))
+			{
+				synchronized (this)
+				{
+					UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
 
-					if (intent.getBooleanExtra(
-							UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-						if (device != null) {
+					if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false))
+					{
+						if (device != null)
+						{
 							// call method to set up device communication
 							telosBConnect.connectDevice(mDevice);
 						}
@@ -169,34 +205,59 @@ public class AndroidWSNControllerActivity extends Activity {
 		}
 	};
 
+
+
+
 	@Override
-	public void onPause() {
+	public void onPause()
+	{
 		super.onPause();
 	}
 
+
+
+
 	@Override
-	public void onResume() {
+	public void onResume()
+	{
 		super.onResume();
 	}
 
+
+
+
 	@Override
-	public void onDestroy() {
+	public void onDestroy()
+	{
 		super.onDestroy();
 	}
 
-	public TextView getOutputTextView() {
+
+
+
+	public TextView getOutputTextView()
+	{
 		return textView;
 	}
 
-	Runnable getOutputRunnable() {
-		Runnable act = new Runnable() {
-			public void run() {
+
+
+
+	Runnable getOutputRunnable()
+	{
+		Runnable act = new Runnable()
+		{
+			public void run()
+			{
 				textView.append("blaslgq\n");
 			};
 		};
 		return act;
 	}
-	
+
+
+
+
 	public TelosBConnector getTelosBConnecter()
 	{
 		return this.telosBConnect;
