@@ -17,8 +17,8 @@ import de.rwth.comsys.helpers.ByteConverter;
 import de.rwth.comsys.ihex.Record;
 
 /**
- * Used to load a ELF file from external storage and to parse the file. 
- * Limited to files smaller than the max value of Integers in Bytes.
+ * Used to load a ELF file from external storage and to parse the file. Limited to files
+ * smaller than the max value of Integers in Bytes.
  * 
  * @author Christian & Stephan
  * 
@@ -36,9 +36,14 @@ public class ElfLoader
 	private ArrayList<SymbolTableEntry> symbolTableEntries = null;
 
 
-	private ElfLoader(){}
-	
-	
+
+
+	private ElfLoader()
+	{
+	}
+
+
+
 
 	/**
 	 * Loads a ELF file and parses the file.
@@ -52,10 +57,14 @@ public class ElfLoader
 		int sectionLength = 0;
 		ElfLoader newElfLoader = new ElfLoader();
 		
+		//check input
+		if(pathName == null) return null;
+		//TODO handleError
+		
 		// check access to storage
 		if (newElfLoader.checkAccessToExternalStorage() == false)
 			return null;
-		
+
 		File file = new File(pathName);
 		FileInputStream input;
 
@@ -101,8 +110,10 @@ public class ElfLoader
 		}
 
 		// parse program headers
-		newElfLoader.programHeaders = newElfLoader.parseProgramHeaders((int) newElfLoader.header.getProgramHeaderTableFileOffset(),
-				newElfLoader.header.getProgramHeaderTableEntrySize() * newElfLoader.header.getProgramHeaderTableEntryCount(),
+		newElfLoader.programHeaders = newElfLoader.parseProgramHeaders(
+				(int) newElfLoader.header.getProgramHeaderTableFileOffset(),
+				newElfLoader.header.getProgramHeaderTableEntrySize()
+						* newElfLoader.header.getProgramHeaderTableEntryCount(),
 				newElfLoader.header.getProgramHeaderTableEntrySize());
 		if (newElfLoader.programHeaders == null)
 		{
@@ -111,8 +122,10 @@ public class ElfLoader
 		}
 
 		// parse section headers
-		newElfLoader.sectionHeaders = newElfLoader.parseSectionHeader((int) newElfLoader.header.getSectionHeaderTableFileOffset(),
-				newElfLoader.header.getSectionHeaderTableEntrySize() * newElfLoader.header.getSectionHeaderTableEntryCount(),
+		newElfLoader.sectionHeaders = newElfLoader.parseSectionHeader(
+				(int) newElfLoader.header.getSectionHeaderTableFileOffset(),
+				newElfLoader.header.getSectionHeaderTableEntrySize()
+						* newElfLoader.header.getSectionHeaderTableEntryCount(),
 				newElfLoader.header.getSectionHeaderTableEntrySize());
 		if (newElfLoader.header == null)
 		{
@@ -121,7 +134,8 @@ public class ElfLoader
 		}
 
 		// parse section header names
-		SectionHeader stringTableSectionHeader = newElfLoader.sectionHeaders.get(newElfLoader.header.getSectionHeaderStringTableIndex());
+		SectionHeader stringTableSectionHeader = newElfLoader.sectionHeaders.get(newElfLoader.header
+				.getSectionHeaderStringTableIndex());
 		offset = (int) stringTableSectionHeader.getSectionFileOffset();
 		sectionLength = (int) stringTableSectionHeader.getSectionSize();
 		newElfLoader.sectionHeaderNames = newElfLoader.parseStringTable(offset, sectionLength);
@@ -208,7 +222,7 @@ public class ElfLoader
 			String name = newElfLoader.symbolTableEntryNames.get(key);
 			currentSymbolTableEntry.setName(name);
 		}
-		
+
 		return newElfLoader;
 
 	}
@@ -358,16 +372,13 @@ public class ElfLoader
 
 
 	/**
-	 * Manipulates loadedFile by name and value. Stores the loadedFile in a new file with
-	 * the given filename at the given path.
+	 * Manipulates loadedFile by name and value.
 	 * 
-	 * @param path
-	 * @param filename
 	 * @param name of entry in symbolTable
 	 * @param value to write
 	 * @return true if writing was successful
 	 */
-	public boolean storeValueInFileByName(String path, String filename, String name, int value)
+	public boolean manipulateLoadedFileByName(String name, int value)
 	{
 		// get offset and size of entry
 		Variable var = getVariableBySymbolTableName(name);
@@ -391,11 +402,10 @@ public class ElfLoader
 			}
 
 		}
+
 		// ensure to not run out of range and to overwrite all bytes
 		if (size > var.getSizeInBytes() || var.getSizeInBytes() > 4)
 			return false;
-
-		File file = new File(path + filename);
 
 		// overwrite up to 4 bytes
 		for (int i = 0; i < valuesToWrite.length && i < var.getSizeInBytes(); i++)
@@ -404,9 +414,30 @@ public class ElfLoader
 			loadedFile[var.getFileOffset() + i] = currentByte;
 		}
 		// TODO write zeros if size is large than 4 bytes
+
+		return true;
+	}
+
+
+
+
+	/**
+	 * Stores the loadedFile in a new file with the given filename at the given path.
+	 * 
+	 * @param path
+	 * @param filename
+	 * @return true if writing was successful
+	 */
+	public boolean storeLoadedFile(String path, String filename)
+	{
+		// check access to storage
+		if (this.checkAccessToExternalStorage() == false)
+			return false;
+
+		File file = new File(path + filename);
+
 		try
 		{
-
 			boolean ok = file.createNewFile();
 			if (ok == false)
 			{
@@ -421,6 +452,7 @@ public class ElfLoader
 		{
 			return false;
 		}
+
 		return true;
 	}
 
@@ -776,7 +808,9 @@ public class ElfLoader
 		}
 	}
 
-		
+
+
+
 	/**
 	 * Checks if we can read/write to external storage.
 	 * 
@@ -796,6 +830,7 @@ public class ElfLoader
 		errorHandler(ELFErrorCode.ELFLOADER_NO_ACCESS_TO_STORAGE);
 		return false;
 	}
+
 
 
 

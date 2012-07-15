@@ -1,10 +1,15 @@
 package de.rwth.comsys.ihex;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+
 import de.rwth.comsys.enums.ErrorCodes;
 import de.rwth.comsys.enums.RecordTypes;
 
@@ -44,6 +49,10 @@ public class HexLoader
 	 */
 	public static HexLoader createHexLoader(String pathToFile)
 	{	
+		//check input
+		if(pathToFile == null) return null;
+		//TODO handleError
+		
 		HexLoader newHexLoader = new HexLoader();
 		
 		// check access to storage
@@ -222,7 +231,58 @@ public class HexLoader
 		}
 	}
 
+	/**
+	 * Stores all Records in a new file with the given filename at the given path.
+	 * 
+	 * @param path
+	 * @param filename
+	 * @return true if writing was successful
+	 */
+	public boolean storeRecords(String path, String filename)
+	{
+		// check access to storage
+		if (this.checkAccessToExternalStorage() == false)
+			return false;
 
+		File file = new File(path + filename);
+
+		try
+		{
+			boolean ok = file.createNewFile();
+			if (ok == false)
+			{
+				return false;
+			}
+			
+			FileWriter fileWriter = new FileWriter(file);
+			
+			BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+
+			String currentRow = "";
+			
+			for (Iterator<Record> iterator = records.iterator(); iterator.hasNext();)
+			{
+				currentRow = iterator.next().toString();
+				
+				if(iterator.hasNext())
+				{
+					bufferedWriter.append(currentRow+"\n");
+				}
+				else
+				{
+					bufferedWriter.write(currentRow);
+				}
+			}
+			
+			bufferedWriter.close();
+
+		} catch (Exception e)
+		{
+			return false;
+		}
+
+		return true;
+	}
 
 
 	/**
