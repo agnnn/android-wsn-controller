@@ -118,8 +118,7 @@ public class Header
 
 
 	/**
-	 * @param ident
-	 *            the ident to set
+	 * @param ident the ident to set
 	 */
 	public void setIdent(short[] ident)
 	{
@@ -141,8 +140,7 @@ public class Header
 
 
 	/**
-	 * @param type
-	 *            the type to set
+	 * @param type the type to set
 	 */
 	public void setType(int type)
 	{
@@ -164,8 +162,7 @@ public class Header
 
 
 	/**
-	 * @param architecture
-	 *            the architecture to set
+	 * @param architecture the architecture to set
 	 */
 	public void setArchitecture(int architecture)
 	{
@@ -187,8 +184,7 @@ public class Header
 
 
 	/**
-	 * @param version
-	 *            the version to set
+	 * @param version the version to set
 	 */
 	public void setVersion(long version)
 	{
@@ -210,8 +206,7 @@ public class Header
 
 
 	/**
-	 * @param entryPointAddress
-	 *            the entryPointAddress to set
+	 * @param entryPointAddress the entryPointAddress to set
 	 */
 	public void setEntryPointAddress(long entryPointAddress)
 	{
@@ -233,8 +228,7 @@ public class Header
 
 
 	/**
-	 * @param programHeaderTableFileOffset
-	 *            the programHeaderTableFileOffset to set
+	 * @param programHeaderTableFileOffset the programHeaderTableFileOffset to set
 	 */
 	public void setProgramHeaderTableFileOffset(long programHeaderTableFileOffset)
 	{
@@ -256,8 +250,7 @@ public class Header
 
 
 	/**
-	 * @param sectionHeaderTableFileOffset
-	 *            the sectionHeaderTableFileOffset to set
+	 * @param sectionHeaderTableFileOffset the sectionHeaderTableFileOffset to set
 	 */
 	public void setSectionHeaderTableFileOffset(long sectionHeaderTableFileOffset)
 	{
@@ -279,8 +272,7 @@ public class Header
 
 
 	/**
-	 * @param flags
-	 *            the flags to set
+	 * @param flags the flags to set
 	 */
 	public void setFlags(long flags)
 	{
@@ -302,8 +294,7 @@ public class Header
 
 
 	/**
-	 * @param headerSizeInBytes
-	 *            the headerSizeInBytes to set
+	 * @param headerSizeInBytes the headerSizeInBytes to set
 	 */
 	public void setHeaderSizeInBytes(int headerSizeInBytes)
 	{
@@ -325,8 +316,7 @@ public class Header
 
 
 	/**
-	 * @param programHeaderTableEntrySize
-	 *            the programHeaderTableEntrySize to set
+	 * @param programHeaderTableEntrySize the programHeaderTableEntrySize to set
 	 */
 	public void setProgramHeaderTableEntrySize(int programHeaderTableEntrySize)
 	{
@@ -348,8 +338,7 @@ public class Header
 
 
 	/**
-	 * @param programHeaderTableEntryCount
-	 *            the programHeaderTableEntryCount to set
+	 * @param programHeaderTableEntryCount the programHeaderTableEntryCount to set
 	 */
 	public void setProgramHeaderTableEntryCount(int programHeaderTableEntryCount)
 	{
@@ -371,8 +360,7 @@ public class Header
 
 
 	/**
-	 * @param sectionHeaderTableEntrySize
-	 *            the sectionHeaderTableEntrySize to set
+	 * @param sectionHeaderTableEntrySize the sectionHeaderTableEntrySize to set
 	 */
 	public void setSectionHeaderTableEntrySize(int sectionHeaderTableEntrySize)
 	{
@@ -394,8 +382,7 @@ public class Header
 
 
 	/**
-	 * @param sectionHeaderTableEntryCount
-	 *            the sectionHeaderTableEntryCount to set
+	 * @param sectionHeaderTableEntryCount the sectionHeaderTableEntryCount to set
 	 */
 	public void setSectionHeaderTableEntryCount(int sectionHeaderTableEntryCount)
 	{
@@ -417,8 +404,7 @@ public class Header
 
 
 	/**
-	 * @param sectionHeaderStringTableIndex
-	 *            the sectionHeaderStringTableIndex to set
+	 * @param sectionHeaderStringTableIndex the sectionHeaderStringTableIndex to set
 	 */
 	public void setSectionHeaderStringTableIndex(int sectionHeaderStringTableIndex)
 	{

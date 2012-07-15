@@ -16,7 +16,10 @@ public class ProgramHeader
 	private long memorySize;
 	private long flags;
 	private long alignment;
-	
+
+
+
+
 	/**
 	 * Constructor. Initializes variables with -1 (null).
 	 */
@@ -31,8 +34,10 @@ public class ProgramHeader
 		this.flags = -1;
 		this.alignment = -1;
 	}
-	
-	
+
+
+
+
 	/**
 	 * Checks if all attributes are set.
 	 * 
@@ -58,9 +63,10 @@ public class ProgramHeader
 			return false;
 		return true;
 	}
-	
-	
-	
+
+
+
+
 	/**
 	 * @return the type
 	 */
@@ -68,6 +74,10 @@ public class ProgramHeader
 	{
 		return type;
 	}
+
+
+
+
 	/**
 	 * @param type the type to set
 	 */
@@ -75,6 +85,10 @@ public class ProgramHeader
 	{
 		this.type = type;
 	}
+
+
+
+
 	/**
 	 * @return the offset
 	 */
@@ -82,6 +96,10 @@ public class ProgramHeader
 	{
 		return offset;
 	}
+
+
+
+
 	/**
 	 * @param offset the offset to set
 	 */
@@ -89,6 +107,10 @@ public class ProgramHeader
 	{
 		this.offset = offset;
 	}
+
+
+
+
 	/**
 	 * @return the virtualAddress
 	 */
@@ -96,6 +118,10 @@ public class ProgramHeader
 	{
 		return virtualAddress;
 	}
+
+
+
+
 	/**
 	 * @param virtualAddress the virtualAddress to set
 	 */
@@ -103,6 +129,10 @@ public class ProgramHeader
 	{
 		this.virtualAddress = virtualAddress;
 	}
+
+
+
+
 	/**
 	 * @return the physicalAddress
 	 */
@@ -110,6 +140,10 @@ public class ProgramHeader
 	{
 		return physicalAddress;
 	}
+
+
+
+
 	/**
 	 * @param physicalAddress the physicalAddress to set
 	 */
@@ -117,6 +151,10 @@ public class ProgramHeader
 	{
 		this.physicalAddress = physicalAddress;
 	}
+
+
+
+
 	/**
 	 * @return the fileSize
 	 */
@@ -124,6 +162,10 @@ public class ProgramHeader
 	{
 		return fileSize;
 	}
+
+
+
+
 	/**
 	 * @param fileSize the fileSize to set
 	 */
@@ -131,6 +173,10 @@ public class ProgramHeader
 	{
 		this.fileSize = fileSize;
 	}
+
+
+
+
 	/**
 	 * @return the memorySize
 	 */
@@ -138,6 +184,10 @@ public class ProgramHeader
 	{
 		return memorySize;
 	}
+
+
+
+
 	/**
 	 * @param memorySize the memorySize to set
 	 */
@@ -145,6 +195,10 @@ public class ProgramHeader
 	{
 		this.memorySize = memorySize;
 	}
+
+
+
+
 	/**
 	 * @return the flags
 	 */
@@ -152,6 +206,10 @@ public class ProgramHeader
 	{
 		return flags;
 	}
+
+
+
+
 	/**
 	 * @param flags the flags to set
 	 */
@@ -159,6 +217,10 @@ public class ProgramHeader
 	{
 		this.flags = flags;
 	}
+
+
+
+
 	/**
 	 * @return the alignment
 	 */
@@ -166,6 +228,10 @@ public class ProgramHeader
 	{
 		return alignment;
 	}
+
+
+
+
 	/**
 	 * @param alignment the alignment to set
 	 */
@@ -173,5 +239,5 @@ public class ProgramHeader
 	{
 		this.alignment = alignment;
 	}
-	
+
 }
