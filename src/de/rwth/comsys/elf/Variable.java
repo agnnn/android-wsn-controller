@@ -29,7 +29,7 @@ public class Variable
 
 
 	/**
-	 * Constructor. Initializes variables with -1 (null).
+	 * Constructor.
 	 */
 	public Variable(String name, int fileOffset, int sizeInBytes, int value)
 	{
