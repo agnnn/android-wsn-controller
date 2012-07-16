@@ -105,6 +105,7 @@ public class FileLoaderTask extends AsyncTask<File, Integer, FileManagerEntry>
 			// overwrite entry
 			if (foundEntry == true)
 			{
+				//TODO add or overwrite hexloaders
 				currentFileManagerEntry = entry;
 			}
 			else
