@@ -4,5 +4,11 @@
     <string name="hello">Hello World, AndroidWSNControllerActivity!</string>
     <string name="app_name">Android WSN Controller</string>
     <string name="output">&quot;&quot;</string>
+    <string name="action_erase">Erase</string>
+    <string name="action_flash">Flash</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_sf_off">Serialforwarder off</string>
+    <string name="action_sf_on">Serialforwarder on</string>
+   
 
 </resources>
