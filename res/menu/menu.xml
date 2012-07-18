@@ -1,0 +1,28 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_refresh"
+        android:title="@string/action_refresh"
+        android:icon="@drawable/ic_action_refresh"
+        android:orderInCategory="0"
+         android:showAsAction="ifRoom|withText" />
+    <item android:id="@+id/action_flash"
+        android:title="@string/action_flash"
+        android:icon="@drawable/ic_action_flash"
+        android:orderInCategory="1"
+         android:showAsAction="ifRoom|withText" />
+    <item android:id="@+id/action_erase"
+        android:title="@string/action_erase"
+        android:icon="@drawable/ic_action_erase"
+        android:orderInCategory="2"
+         android:showAsAction="ifRoom|withText" />
+    <item android:id="@+id/action_sf_on"
+        android:title="@string/action_sf_on"
+        android:icon="@drawable/ic_action_sf_on"
+        android:orderInCategory="3"
+         android:showAsAction="ifRoom|withText" />
+    <item android:id="@+id/action_sf_off"
+        android:title="@string/action_sf_off"
+        android:icon="@drawable/ic_action_sf_off"
+        android:orderInCategory="4"
+         android:showAsAction="ifRoom|withText"
+         />
+</menu>

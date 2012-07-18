@@ -9,6 +9,7 @@ import de.rwth.comsys.helpers.OutputHandler;
 import de.rwth.comsys.ihex.HexLoader;
 
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -22,6 +23,9 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -62,6 +66,9 @@ public class AndroidWSNControllerActivity extends Activity
 		startSFButton.setOnClickListener(startSFListener);
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
+		
+		
+		ActionBar actionBar = getActionBar();
 
 		// init io handler
 		IOHandler.setContext(this);
@@ -79,9 +86,38 @@ public class AndroidWSNControllerActivity extends Activity
 
 		telosBConnect = new TelosBConnector(mManager, this);
 		textView.append("telosBConnector created\n");
+	}   
+ 
+	/**
+	 * Setting up actionbar menu icons/layout.
+	 */
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+	    MenuInflater inflater = getMenuInflater();
+	    inflater.inflate(R.menu.menu, menu);
+	    return true;
 	}
-
-
+  
+	
+	/**
+	 * Reacts on clicking on actionbar items.
+	 */
+	public boolean onOptionsItemSelected(MenuItem item) {
+	    switch (item.getItemId()) {
+	        case R.id.action_refresh:
+	        	
+	        case R.id.action_flash:
+	        	
+	        case R.id.action_erase:	
+	            // app icon in action bar clicked; go home
+	            //Intent intent = new Intent(this, HomeActivity.class);
+	            //intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+	            //startActivity(intent);
+	            return true;
+	        default:
+	            return super.onOptionsItemSelected(item);
+	    }
+	}
 
 
 	/**
