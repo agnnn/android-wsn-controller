@@ -205,7 +205,7 @@ public class TelosBConnector
 	 */
 	public void connectDevice(UsbDevice device)
 	{
-		// textView.append("setDevice " + device+"\n");
+		 textView.append("setDevice " + device+"\n");
 		if (device.getInterfaceCount() != 1)
 		{
 			textView.append("Could not find interface!\n");

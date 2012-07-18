@@ -2,6 +2,6 @@
 
 <resources>
     <!-- vendor and product ID for telosb -->
-    <usb-device vendor-id="1027" product-id="24577" />
+    <usb-device vendor-id="1027" />
     
 </resources>
