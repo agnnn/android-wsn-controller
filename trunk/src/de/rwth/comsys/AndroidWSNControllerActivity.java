@@ -1,18 +1,16 @@
 package de.rwth.comsys;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-
-import de.rwth.comsys.helpers.IOHandler;
-import de.rwth.comsys.helpers.OutputHandler;
-import de.rwth.comsys.ihex.HexLoader;
-
 
 import android.app.ActionBar;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ClipData.Item;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -23,34 +21,73 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
+import android.util.SparseBooleanArray;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TabHost;
+import android.widget.TabHost.TabSpec;
 import android.widget.TextView;
+import de.rwth.comsys.helpers.IOHandler;
+import de.rwth.comsys.helpers.OutputHandler;
+import de.rwth.comsys.ihex.HexLoader;
 
 public class AndroidWSNControllerActivity extends Activity
 {
 
 	private UsbManager mManager = null;
-	private UsbDevice mDevice = null;
+	private ArrayList<UsbDevice> mDevice = null;
 	private TextView textView = null;
 	private PendingIntent mPermissionIntent = null;
 	UsbInterface mUSBInterface = null;
 	private OutputHandler uiHandler;
 	private TelosBConnector telosBConnect;
 	private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
+	ListView moteList;
+	ArrayAdapter<String> moteListAdapter;
 
-
-
+	/**
+	 * @return the indices of the checked motes in the moteList
+	 */
+	public long[] getCheckedItems() {
+		final SparseBooleanArray checkedItems = moteList.getCheckedItemPositions();
+		long[] positions = new long[]{};
+		if (checkedItems == null) {
+			// That means our list is not able to handle selection
+			// (choiceMode is CHOICE_MODE_NONE for example)
+			return positions;
+		}
+		ArrayList<Integer> indices = new ArrayList<Integer>();
+	
+		// For each element in the status array
+		final int checkedItemsCount = checkedItems.size();
+		for (int i = 0; i < checkedItemsCount; ++i) {
+			// This tells us the item position we are looking at
+			final int position = checkedItems.keyAt(i);
+			
+			// And this tells us the item status at the above position
+			final boolean isChecked = checkedItems.valueAt(i);
+			if(isChecked)
+				indices.add(position);
+		}
+		
+		// convert array list to simple type
+		long[] resultIndices = new long[indices.size()];
+		for (int i=0;i<indices.size();i++) {
+			resultIndices[i] = indices.get(i);
+		}
+		return resultIndices;
+	}
 
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
-
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 		// get button and register listener
@@ -66,7 +103,34 @@ public class AndroidWSNControllerActivity extends Activity
 		startSFButton.setOnClickListener(startSFListener);
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
+		moteList = (ListView) findViewById(R.id.listView1);
+		String[] values = new String[] { "no motes connected" };
+		ArrayList<String> moteListStrings = new ArrayList<String>();
+		moteListStrings.addAll(Arrays.asList(values));
+
+		mDevice = new ArrayList<UsbDevice>();
+		// First paramenter - Context
+		// Second parameter - Layout for the row
+		// Third parameter - ID of the View to which the data is written
+		// Forth - the Array of data
+		moteListAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_multiple_choice, android.R.id.text1, moteListStrings);
+
+		// Assign adapter to ListView
+		moteList.setAdapter(moteListAdapter);
+		moteList.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
 		
+		TabHost tabHost = (TabHost)findViewById(android.R.id.tabhost);
+		tabHost.setup();
+
+		TabSpec spec = tabHost.newTabSpec("one");
+		spec.setIndicator("MOTELIST");
+		spec.setContent(R.id.tab1);
+		tabHost.addTab(spec);
+		
+		TabSpec spec2 = tabHost.newTabSpec("two");
+		spec2.setIndicator("SF");
+		spec2.setContent(R.id.tab2);
+		tabHost.addTab(spec2);
 		
 		ActionBar actionBar = getActionBar();
 
@@ -140,12 +204,19 @@ public class AndroidWSNControllerActivity extends Activity
 				textView.append("Nothing found! \n");
 
 			Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
+			UsbDevice currentDevice = null;
+			// clear the list view
+			moteListAdapter.clear();
+			boolean moteFound = false;
 			while (deviceIterator.hasNext())
 			{
-				mDevice = deviceIterator.next();
-				mManager.requestPermission(mDevice, mPermissionIntent);
-				textView.append("device: " + mDevice.getDeviceName() + " found\n");
+				moteFound = true;
+				currentDevice = deviceIterator.next();
+				mManager.requestPermission(currentDevice, mPermissionIntent);
+				//textView.append("device: " + mDevice.getDeviceName() + " found\n");
 			}
+			if(!moteFound)
+				moteListAdapter.add("no mote available");
 		}
 	};
 
@@ -172,7 +243,11 @@ public class AndroidWSNControllerActivity extends Activity
 		{
 			try
 			{
-				telosBConnect.execSerialForwarder("2001");
+				long[] checkedItems = moteList.getCheckedItemIds();
+				for (int i = 0; i < (int)checkedItems.length; i++) {
+					int idx = (int)checkedItems[i];
+					telosBConnect.execSerialForwarder("2001",idx);
+				}
 			} catch (Exception e)
 			{
 				// TODO Auto-generated catch block
@@ -233,7 +308,11 @@ public class AndroidWSNControllerActivity extends Activity
 						if (device != null)
 						{
 							// call method to set up device communication
-							telosBConnect.connectDevice(mDevice);
+							mDevice.add(device);
+							telosBConnect.connectDevice(device);
+							
+							// add device to the list view
+							moteListAdapter.add(device.getDeviceName());
 						}
 					}
 				}

@@ -28,9 +28,6 @@ public class SocketService extends Service
 	final int MAX_BUFFER_SIZE = 255;
 	private volatile boolean stopped;
 
-
-
-
 	@Override
 	public void onStart(Intent intent, int startid)
 	{
