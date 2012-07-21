@@ -56,11 +56,12 @@ public class ElfLoader
 		int offset = 0;
 		int sectionLength = 0;
 		ElfLoader newElfLoader = new ElfLoader();
-		
-		//check input
-		if(pathName == null) return null;
-		//TODO handleError
-		
+
+		// check input
+		if (pathName == null)
+			return null;
+		// TODO handleError
+
 		// check access to storage
 		if (newElfLoader.checkAccessToExternalStorage() == false)
 			return null;
@@ -109,18 +110,6 @@ public class ElfLoader
 			return null;
 		}
 
-		// parse program headers
-		newElfLoader.programHeaders = newElfLoader.parseProgramHeaders(
-				(int) newElfLoader.header.getProgramHeaderTableFileOffset(),
-				newElfLoader.header.getProgramHeaderTableEntrySize()
-						* newElfLoader.header.getProgramHeaderTableEntryCount(),
-				newElfLoader.header.getProgramHeaderTableEntrySize());
-		if (newElfLoader.programHeaders == null)
-		{
-			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_PROGRAM_HEADERS_ERROR);
-			return null;
-		}
-
 		// parse section headers
 		newElfLoader.sectionHeaders = newElfLoader.parseSectionHeader(
 				(int) newElfLoader.header.getSectionHeaderTableFileOffset(),
@@ -152,6 +141,18 @@ public class ElfLoader
 			Integer key = (int) (stringTableSectionHeader.getSectionFileOffset() + currentSectionHeader
 					.getOffsetInStringTable());
 			currentSectionHeader.setName(newElfLoader.sectionHeaderNames.get(key));
+		}
+
+		// parse program headers
+		newElfLoader.programHeaders = newElfLoader.parseProgramHeaders(
+				(int) newElfLoader.header.getProgramHeaderTableFileOffset(),
+				newElfLoader.header.getProgramHeaderTableEntrySize()
+						* newElfLoader.header.getProgramHeaderTableEntryCount(),
+				newElfLoader.header.getProgramHeaderTableEntrySize());
+		if (newElfLoader.programHeaders == null)
+		{
+			newElfLoader.errorHandler(ELFErrorCode.ELF_PARSE_PROGRAM_HEADERS_ERROR);
+			return null;
 		}
 
 		// search symbolTableSection by symbolTableHeader
@@ -256,11 +257,30 @@ public class ElfLoader
 
 			if (curHeader.getType() == 1) // PC_LOAD
 			{
-				// MSP430 compiler fault -> hardcoded
+				// MSP430 compiler fault -> get first segment by SectionHeader ".text"
 				if (!firstSegmentPassed)
-				{
-					offset = 0x94;
-					size = curHeader.getFileSize() - 0x94;
+				{	
+					if(sectionHeaders!=null)
+					{	
+						String textHeaderString = ".text";
+						for (Iterator<SectionHeader> iterator = sectionHeaders.iterator(); iterator.hasNext();)
+						{
+							SectionHeader currentSectionHeader = iterator.next();
+							if(textHeaderString.equals(currentSectionHeader))
+							{
+								offset = currentSectionHeader.getSectionFileOffset();
+								size = curHeader.getFileSize() - offset;
+								break;
+							}
+							
+						}
+						
+					
+					}
+					else
+					{
+						return null;
+					}
 				}
 				else
 				{
