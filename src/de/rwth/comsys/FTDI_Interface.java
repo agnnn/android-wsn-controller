@@ -14,8 +14,7 @@ import android.hardware.usb.UsbEndpoint;
 import android.util.Log;
 
 /**
- * Establishes and manages connection between FTDI and Android. Thanks to :
- * http://code.google.com/p/android-ftdi-usb2serial-driver-package/
+ * Establishes and manages connection between FTDI and Android.
  * 
  * @author Christian & Stephan
  * 
