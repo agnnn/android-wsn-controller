@@ -42,14 +42,11 @@ public class MediaStoreActivity extends ListActivity implements MediaScannerConn
 		mConnection.connect();
 		
 		// Prepare the loader.
-		getLoaderManager().initLoader(0, null, myLoaderListener);
-		
-		
+		getLoaderManager().initLoader(0, null, myLoaderListener);	
 	}
 	
 
-	private final LoaderManager.LoaderCallbacks<Cursor> myLoaderListener 
-    = new LoaderCallbacks<Cursor>() {
+	private final LoaderManager.LoaderCallbacks<Cursor> myLoaderListener = new LoaderCallbacks<Cursor>() {
 		
 		public Loader<Cursor> onCreateLoader(int arg0, Bundle arg1)
 		{	

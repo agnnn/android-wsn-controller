@@ -8,16 +8,10 @@ public class OutputHandler extends Handler
 {
 	private TextView textView;
 
-
-
-
 	public OutputHandler(TextView textView)
 	{
 		this.textView = textView;
 	}
-
-
-
 
 	@Override
 	public void handleMessage(Message msg)

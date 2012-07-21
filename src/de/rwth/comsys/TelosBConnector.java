@@ -1,22 +1,33 @@
 package de.rwth.comsys;
 
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.UnknownHostException;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.Binder;
+import android.os.IBinder;
 import android.widget.TextView;
-import android.widget.Toast;
 import de.rwth.comsys.enums.FTDI232BM_Matching_MSP430_Baudrates;
 import de.rwth.comsys.enums.MSP430Variant;
 import de.rwth.comsys.enums.MSP430_Commands;
+import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.Record;
 
 /**
@@ -35,17 +46,15 @@ public class TelosBConnector
 	private ArrayList<UsbEndpoint> sendingEndpointMSP430;
 	private ArrayList<UsbEndpoint> receivingEndpointMSP430;
 	private ArrayList<UsbDeviceConnection> mDeviceConnection;
-	private ArrayList<FTDI_Interface> ftdiInterface;
+	private SocketServiceConnection serviceConnection;
+	private static ArrayList<FTDI_Interface> ftdiInterface;
 	private UsbManager mManager;
 	private ArrayList<MSP430Command> commandList;
 	private byte[] password;
 	private final int PASSWORD_LENGTH = 32;
 	private MSP430Variant deviceVariant = null;
 	private AndroidWSNControllerActivity context;
-	ProgrammerThreadMSP430 myThread = null;
-
-
-
+	ArrayList<ProgrammerThreadMSP430> myThread = null;
 
 	public TelosBConnector(UsbManager usbManager, AndroidWSNControllerActivity parentActivity)
 	{
@@ -59,8 +68,16 @@ public class TelosBConnector
 		this.sendingEndpointMSP430 = new ArrayList<UsbEndpoint>();
 		this.receivingEndpointMSP430 = new ArrayList<UsbEndpoint>();
 		this.mDeviceConnection = new ArrayList<UsbDeviceConnection>() ;
-		this.ftdiInterface = new ArrayList<FTDI_Interface>();
+		ftdiInterface = new ArrayList<FTDI_Interface>();
+		this.myThread = new ArrayList<ProgrammerThreadMSP430>();
+		SocketServiceConnection.setContext(context);
 
+		// set the default password
+		setDefaultPassword();
+	}
+	
+	private void setDefaultPassword()
+	{
 		// set the default password
 		byte[] defaultPwd = new byte[PASSWORD_LENGTH];
 		for (int i = 0; i < PASSWORD_LENGTH; i++)
@@ -69,31 +86,95 @@ public class TelosBConnector
 		}
 		this.password = defaultPwd;
 	}
+	public void clear()
+	{
+		this.mDevice = new ArrayList<UsbDevice>();
+		this.sendingEndpointMSP430 = new ArrayList<UsbEndpoint>();
+		this.receivingEndpointMSP430 = new ArrayList<UsbEndpoint>();
+		this.mDeviceConnection = new ArrayList<UsbDeviceConnection>() ;
+		ftdiInterface = new ArrayList<FTDI_Interface>();
+		this.myThread = new ArrayList<ProgrammerThreadMSP430>();
+		
+		// set the default password
+		setDefaultPassword();
+	}
 
 
-
+	private boolean isMyServiceRunning(String serviceName) {
+	    ActivityManager manager = (ActivityManager) context.getSystemService(Activity.ACTIVITY_SERVICE);
+	    for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+	        if (serviceName.equals(service.service.getClassName())) {
+	        	IOHandler.doOutput("service running: "+service.service.toString());
+	            return true;
+	        }
+	    }
+	    return false;
+	}
 
 	public boolean execSerialForwarder(String dstPort, int idx) throws UnknownHostException, IOException
 	{
-		if (myThread != null && myThread.isAlive())
+		//textView.append("execSerialForwarder\n");
+		if ((myThread.size()-1) >= idx && myThread.get(idx) != null && myThread.get(idx).isAlive())
 		{
 			textView.append("Error: a programming is currently running\n");
 			return false;
 		}
-		Integer port = Integer.valueOf(dstPort);
-		if (port != null)
+		
+		/**
+		 * There is still a listindex bug starting the SF
+		 * because a wrong association is made from checked list indices and not correctly from all indices
+		 */
+		if(!SocketService.running)
 		{
-			// IOHandler.doOutput("try starting ServerSocket Service");
+			IOHandler.doOutput("socket service not running");
 			SocketService.setContext(context);
-			SocketService.setInterface(ftdiInterface.get(idx));
-			Intent mySocketIntent = new Intent(context, ServerSocket.class);
-			context.startService(mySocketIntent);
-			return false;
+			
+			Intent mySocketIntent = new Intent(context,SocketService.class);
+
+			ComponentName serviceName = context.startService(mySocketIntent);
+			if(serviceName != null)
+			{
+				SocketServiceConnection conn = new SocketServiceConnection();
+				serviceConnection = conn;
+				context.bindService(mySocketIntent, conn, Context.BIND_AUTO_CREATE);
+				
+				SocketService.running = true;
+			}
+		}
+	
+		if(SocketService.running)
+		{
+			Integer port = Integer.valueOf(dstPort);
+			if (port != null && (ftdiInterface.size()-1 >= idx))
+			{		
+				IOHandler.doOutput("telosBConnector: startSerialForwarder");
+				serviceConnection.startSerialForwarder(port,idx);
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	public boolean getSFState(int idx)
+	{
+		if(SocketService.running)
+		{
+			return serviceConnection.getSFState(idx);
 		}
 		return false;
 	}
-
-
+	public boolean execStopSerialForwarder(int idx) throws UnknownHostException, IOException
+	{
+		if ((myThread.size()-1) >= idx && myThread.get(idx) != null && myThread.get(idx).isAlive())
+		{
+			textView.append("Error: a programming is currently running\n");
+			return false;
+		}
+		
+		serviceConnection.stopSocket(idx);
+		return true;
+	}
 
 
 	/**
@@ -104,17 +185,26 @@ public class TelosBConnector
 	 */
 	public void execMassErase() throws Exception
 	{
-		if (myThread != null && myThread.isAlive())
-		{
-			textView.append("Error: a programming is currently running\n");
-			return;
+		long[] checkedItems = context.getCheckedItems();
+		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
+		for (long itemIdx : checkedItems) {
+			if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
+			{
+				itemsToFlash.add(itemIdx);				
+			}
 		}
-		textView.append("exec mass erase\n");
+		long[] itemAry = new long[itemsToFlash.size()];
+		
+		for (int i=0;i<itemsToFlash.size();i++)
+		{
+			itemAry[i] = itemsToFlash.get(i);
+		}
+		
 		if (mDeviceConnection != null)
 		{
 			commandList.clear();
 			commandList.add(new MSP430Command(MSP430_Commands.MASS_ERASE, MSP430PacketFactory.createMassEraseCommand()));
-			startExecutionThread(context.getCheckedItems());
+			startExecutionThread(itemAry);
 		}
 		else
 			throw new Exception("No Connection available");
@@ -132,11 +222,20 @@ public class TelosBConnector
 	 */
 	public void execFlash(ArrayList<Record> records) throws Exception
 	{
-		if (myThread != null && myThread.isAlive())
-		{
-			textView.append("Error: a programming is currently running\n");
-			return;
+		long[] checkedItems = context.getCheckedItems();
+		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
+		for (long itemIdx : checkedItems) {
+			if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
+			{
+				itemsToFlash.add(itemIdx);				
+			}
 		}
+		long[] itemAry = new long[itemsToFlash.size()];
+		
+		for (int i=0;i<itemsToFlash.size();i++) {
+			itemAry[i] = itemsToFlash.get(i);
+		}
+		
 		textView.append("exec flash erase\n");
 
 		if (mDeviceConnection != null)
@@ -153,7 +252,7 @@ public class TelosBConnector
 			// MSP430PacketFactory.createSetPasswordCommand(this.password)));
 			commandList.add(new MSP430Command(MSP430_Commands.FLASH, records));
 			commandList.add(new MSP430Command(MSP430_Commands.LOAD_PC, Record.getStartAddress(records)));
-			startExecutionThread(context.getCheckedItems());
+			startExecutionThread(itemAry);
 		}
 		else
 			throw new Exception("No Connection available");
@@ -187,9 +286,10 @@ public class TelosBConnector
 				try
 				{
 					textView.append("start execution\n");
-					myThread = new ProgrammerThreadMSP430(commandList, ftdiInterface.get(idx));
-					myThread.setContext(this.context);
-					myThread.start();
+					ProgrammerThreadMSP430 newThread = new ProgrammerThreadMSP430(commandList, ftdiInterface.get(idx));
+					newThread.setContext(this.context);
+					myThread.add(newThread);
+					newThread.start();
 				} catch (Exception e)
 				{
 					textView.append("Error: SendReceiverThreadMSP430! - " + e.getMessage() + "\n");
@@ -325,17 +425,25 @@ public class TelosBConnector
 
 	public void execGetBslVersion() throws Exception
 	{
-		if (myThread != null && myThread.isAlive())
-		{
-			textView.append("Error: a programming is currently running\n");
-			return;
+		long[] checkedItems = context.getCheckedItems();
+		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
+		for (long itemIdx : checkedItems) {
+			if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
+			{
+				itemsToFlash.add(itemIdx);				
+			}
 		}
-		textView.append("exec getBslVersion\n");
+		long[] itemAry = new long[itemsToFlash.size()];
+		
+		for (int i=0;i<itemsToFlash.size();i++) {
+			itemAry[i] = itemsToFlash.get(i);
+		}
+		
 		if (mDeviceConnection != null)
 		{
 			commandList.clear();
 			commandList.add(new MSP430Command(MSP430_Commands.TX_BSL_VERSION));
-			startExecutionThread(context.getCheckedItems());
+			startExecutionThread(itemAry);
 		}
 		else
 			throw new Exception("No Connection available");
@@ -347,5 +455,10 @@ public class TelosBConnector
 	public synchronized void setDeviceVariant(MSP430Variant variant)
 	{
 		this.deviceVariant = variant;
+	}
+	
+	public static synchronized FTDI_Interface getInterfaceByIdx(int idx)
+	{
+		return ftdiInterface.get(idx);
 	}
 }

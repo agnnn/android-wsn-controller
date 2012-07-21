@@ -5,12 +5,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
 import android.app.ActionBar;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
-import android.content.ClipData.Item;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -90,17 +90,12 @@ public class AndroidWSNControllerActivity extends Activity
 	{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		// get button and register listener
-		Button myButtonConnect = (Button) findViewById(R.id.button);
-		myButtonConnect.setOnClickListener(buttonConnectListener);
-		Button myButtonSend = (Button) findViewById(R.id.button1);
-		myButtonSend.setOnClickListener(buttonSendListener);
+		
 		Button myButtonLoad = (Button) findViewById(R.id.button2);
 		myButtonLoad.setOnClickListener(buttonLoadListener);
 		Button getVersionButton = (Button) findViewById(R.id.button3);
 		getVersionButton.setOnClickListener(getBSLVersionListener);
-		Button startSFButton = (Button) findViewById(R.id.button4);
-		startSFButton.setOnClickListener(startSFListener);
+		
 		textView = (TextView) findViewById(R.id.textView);
 		textView.setMovementMethod(new ScrollingMovementMethod());
 		moteList = (ListView) findViewById(R.id.listView1);
@@ -149,7 +144,7 @@ public class AndroidWSNControllerActivity extends Activity
 		registerReceiver(mUsbReceiver, filter);
 
 		telosBConnect = new TelosBConnector(mManager, this);
-		textView.append("telosBConnector created\n");
+		//textView.append("telosBConnector created\n");
 	}   
  
 	/**
@@ -169,20 +164,125 @@ public class AndroidWSNControllerActivity extends Activity
 	public boolean onOptionsItemSelected(MenuItem item) {
 	    switch (item.getItemId()) {
 	        case R.id.action_refresh:
-	        	
+	        	refreshMoteList();
+	        	return true;
 	        case R.id.action_flash:
-	        	
+	        	try
+				{
+					HexLoader hexLoader = HexLoader.createHexLoader(
+							Environment.getExternalStorageDirectory().getAbsolutePath()
+							+ File.separator + "WSN" + File.separator + "main.ihex");
+					telosBConnect.execFlash(hexLoader.getRecords());
+				} catch (Exception e)
+				{
+					textView.append(e.getMessage() + "\n");
+					return false;
+				}
+	        	return true;
 	        case R.id.action_erase:	
-	            // app icon in action bar clicked; go home
-	            //Intent intent = new Intent(this, HomeActivity.class);
-	            //intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-	            //startActivity(intent);
+	            try {
+	            	telosBConnect.execMassErase();
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 	            return true;
+	        case R.id.action_sf_on:
+	        	try
+				{
+					long[] checkedItems = getCheckedItems();
+					
+					int j=0;
+					for (int i = 0; i < moteListAdapter.getCount(); i++) {
+						if(checkedItems[j] == i)
+						{
+							int idx = i;
+							String listItem = (String)moteList.getItemAtPosition(idx);
+							moteListAdapter.remove(listItem);
+							int end = listItem.indexOf("sf");
+							if(end != -1)
+								listItem = listItem.substring(0, end);
+							
+							String sf = "200"+Integer.toString(i);
+							textView.append("start sf for idx: "+idx+"\n");
+							if(telosBConnect.execSerialForwarder(sf,idx))
+							{
+								moteListAdapter.insert(listItem+" sf: "+sf,idx);
+							}
+							else{
+								textView.append("add item at pos: "+idx+"\n");
+								moteListAdapter.insert(listItem,idx);
+							}
+							j++;
+						}
+					}
+				} catch (Exception e)
+				{
+					// TODO Auto-generated catch block
+					textView.append("error: "+e.getMessage() + "\n");
+				}
+	        	return true;
+	        case R.id.action_sf_off:
+	        	try
+				{
+					long[] checkedItems = getCheckedItems();
+					for (int i = 0; i < (int)checkedItems.length; i++) {
+						int idx = (int)checkedItems[i];
+						
+						if(telosBConnect.execStopSerialForwarder(idx))
+						{
+							textView.append("### stopped: "+i+"\n");
+							String listItem = (String)moteList.getItemAtPosition(idx);
+							moteListAdapter.remove(listItem);
+							int end = listItem.indexOf("sf");
+							if(end != -1)
+								listItem = listItem.substring(0, end).trim();
+							moteListAdapter.insert(listItem,idx);
+						}
+						else
+						{
+							textView.append("### stopped failed: "+i+"\n");
+						}
+					}
+				} catch (Exception e)
+				{
+					// TODO Auto-generated catch block
+					textView.append("error: "+e.getMessage() + "\n");
+				}
+	        	return true;
 	        default:
 	            return super.onOptionsItemSelected(item);
 	    }
 	}
 
+	private void refreshMoteList()
+	{
+		telosBConnect.clear();
+		// listen for new devices
+		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
+		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+		registerReceiver(mUsbReceiver, filter);
+		
+		HashMap<String, UsbDevice> deviceList = mManager.getDeviceList();
+
+		if (deviceList.isEmpty())
+			textView.append("Nothing found! \n");
+
+		Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
+		UsbDevice currentDevice = null;
+		// clear the list view
+		moteListAdapter.clear();
+		boolean moteFound = false;
+		while (deviceIterator.hasNext())
+		{
+			moteFound = true;
+			currentDevice = deviceIterator.next();
+			mManager.requestPermission(currentDevice, mPermissionIntent);
+			//textView.append("device: " + mDevice.getDeviceName() + " found\n");
+		}
+		if(!moteFound)
+			moteListAdapter.add("no mote available");
+	}
 
 	/**
 	 * @return the uiHandler
@@ -193,85 +293,21 @@ public class AndroidWSNControllerActivity extends Activity
 	}
 
 	// OnClickListener iterates over connected devices and requests permission
-	private OnClickListener buttonConnectListener = new OnClickListener()
-	{
-		public void onClick(View v)
-		{
-
-			HashMap<String, UsbDevice> deviceList = mManager.getDeviceList();
-
-			if (deviceList.isEmpty())
-				textView.append("Nothing found! \n");
-
-			Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
-			UsbDevice currentDevice = null;
-			// clear the list view
-			moteListAdapter.clear();
-			boolean moteFound = false;
-			while (deviceIterator.hasNext())
-			{
-				moteFound = true;
-				currentDevice = deviceIterator.next();
-				mManager.requestPermission(currentDevice, mPermissionIntent);
-				//textView.append("device: " + mDevice.getDeviceName() + " found\n");
-			}
-			if(!moteFound)
-				moteListAdapter.add("no mote available");
-		}
-	};
-
-	// OnClickListener iterates over connected devices and requests permission
 	private OnClickListener getBSLVersionListener = new OnClickListener()
 	{
 		public void onClick(View v)
 		{
 			try
 			{
-				telosBConnect.execGetBslVersion();
+				textView.setText("");
+				//telosBConnect.execGetBslVersion();
+				//telosBConnect.execSerialForwarder("2001", 0);
 			} catch (Exception e)
 			{
 				// TODO Auto-generated catch block
 				textView.append(e.getMessage() + "\n");
 			}
 		}
-	};
-
-	// OnClickListener iterates over connected devices and requests permission
-	private OnClickListener startSFListener = new OnClickListener()
-	{
-		public void onClick(View v)
-		{
-			try
-			{
-				long[] checkedItems = moteList.getCheckedItemIds();
-				for (int i = 0; i < (int)checkedItems.length; i++) {
-					int idx = (int)checkedItems[i];
-					telosBConnect.execSerialForwarder("2001",idx);
-				}
-			} catch (Exception e)
-			{
-				// TODO Auto-generated catch block
-				textView.append(e.getMessage() + "\n");
-			}
-		}
-	};
-	// OnClickListener sends a packet to mDevice
-	private OnClickListener buttonSendListener = new OnClickListener()
-	{
-		public void onClick(View v)
-		{
-			try
-			{
-				HexLoader hexLoader = HexLoader.createHexLoader(Environment.getExternalStorageDirectory().getAbsolutePath()
-						+ File.separator + "WSN" + File.separator + "main.ihex");
-					telosBConnect.execFlash(hexLoader.getRecords());
-			} catch (Exception e)
-			{
-				textView.append(e.getMessage() + "\n");
-			}
-		}
-
-		
 	};
 
 	// OnClickListener sends a packet to mDevice
@@ -305,8 +341,19 @@ public class AndroidWSNControllerActivity extends Activity
 
 					if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false))
 					{
-						if (device != null)
+						if (device != null && telosBConnect != null)
 						{
+							// TODO what happens if someone refreshes the motelist when there are SFs started
+							/*int curIdx = (mDevice.size()-1);
+							String deviceName = device.getDeviceName();
+							if(telosBConnect.getSFState(curIdx))
+							{
+								deviceName += "sf: 200"+curIdx;
+							}
+							else
+							{
+								textView.append("getSFState: false for idx: "+curIdx);
+							}*/
 							// call method to set up device communication
 							mDevice.add(device);
 							telosBConnect.connectDevice(device);
