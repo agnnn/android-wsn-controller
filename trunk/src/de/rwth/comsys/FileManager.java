@@ -27,30 +27,27 @@ public final class FileManager
     
 
 	// attributes
-    private ArrayList<FileManagerEntry> files = new ArrayList<FileManagerEntry> ();
+    private ArrayList<FileManagerEntry> fileManagerEntries = new ArrayList<FileManagerEntry> ();
     
     //TODO start mediascanner and get all important files from storage
     // update Filemanager by scanner
-    public void loadFile(File file)
-    {
-    	FileLoaderTask task = new FileLoaderTask();
-		//TODO task.execute();
-    }
     
-    /**
-	 * @return the files
-	 */
-	public ArrayList<FileManagerEntry> getFiles()
-	{
-		return files;
-	}
+    
 
 
 	/**
-	 * @param files the files to set
+	 * @return the fileManagerEntries
 	 */
-	public void setFiles(ArrayList<FileManagerEntry> files)
+	public ArrayList<FileManagerEntry> getFileManagerEntries()
 	{
-		this.files = files;
+		return fileManagerEntries;
 	}
+
+
+	
+
+
+	
+    
+   
 }

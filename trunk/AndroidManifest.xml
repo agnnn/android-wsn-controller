@@ -3,38 +3,51 @@
     package="de.rwth.comsys"
     android:versionCode="1"
     android:versionName="1.0" >
-	<uses-feature android:name="android.hardware.usb.host" />
-    <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="14"/>
+
+    <uses-feature android:name="android.hardware.usb.host" />
+
+    <uses-sdk
+        android:minSdkVersion="14"
+        android:targetSdkVersion="14" />
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.INTERNET" android:label="Socket Permission" />
-    
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        android:label="Socket Permission" />
 
     <application
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:uiOptions="splitActionBarWhenNarrow"
-        android:theme="@android:style/Theme.Holo" >
+        android:theme="@android:style/Theme.Holo"
+        android:uiOptions="splitActionBarWhenNarrow" >
         <activity
             android:name=".AndroidWSNControllerActivity"
-            
-            android:label="@string/app_name"
-            >
+            android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-				<action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
-                
             </intent-filter>
 
-            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-       			 android:resource="@xml/device_filter" />
-            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_DETACHED"
-        			android:resource="@xml/device_filter" />
-            
-          </activity>  
-          <service android:name=".SocketService"></service>
-          
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_DETACHED"
+                android:resource="@xml/device_filter" />
+        </activity>
 
+        <service android:name=".SocketService" >
+        </service>
+
+        <activity
+            android:name=".FlashActivity"
+            android:label="@string/title_activity_flash" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="de.rwth.comsys.AndroidWSNControllerActivity" />
+        </activity>
     </application>
 
 </manifest>

@@ -1,118 +1,126 @@
 package de.rwth.comsys;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import android.os.AsyncTask;
 import de.rwth.comsys.elf.ElfLoader;
+import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.HexLoader;
 
-import android.os.AsyncTask;
-
-public class FileLoaderTask extends AsyncTask<File, Integer, FileManagerEntry>
+/**
+ * Loads a file from memory by specific Loader and overwrites the given "FileManagerEntry"
+ * in "FileManager".
+ * 
+ * @author Christian & Stephan
+ * 
+ */
+public class FileLoaderTask extends AsyncTask<FileManagerEntry, Integer, Boolean>
 {
 
 	@Override
-	protected FileManagerEntry doInBackground(File... params)
+	protected Boolean doInBackground(FileManagerEntry... params)
 	{
-		FileManagerEntry result = new FileManagerEntry();
-		File[] files = params;
-		File file = null;
+		FileManagerEntry result;
 		ElfLoader elfLoader = null;
 		HexLoader hexLoader = null;
 		String extension = null;
+		String fileName = null;
 
-		// cut off the rest
-		if (files != null)
+		// cut off rest and set fileName
+		if (params != null)
 		{
-			file = files[0];
+			result = params[0];
+			fileName = result.getFile().getName();
 		}
 		else
 		{
-			return null;
+			// stop execution
+			IOHandler.doOutput("FileLoaderTask: wrong input!");
+			return false;
 		}
 
-		String fileName = file.getName();
-
+		// get extension
 		try
 		{
 			// crashes if fileName has no extension
 			extension = fileName.substring(0, fileName.lastIndexOf('.'));
 			if (extension == null || extension.isEmpty())
-				return null;
+			{
+				IOHandler.doOutput("FileLoaderTask: File has no extension!");
+				return false;
+			}
+
 		} catch (Exception e)
 		{
-			// TODO handle error
-			return null;
+			IOHandler.doOutput("FileLoaderTask: File has no extension!");
+			return false;
 		}
 
 		// which loader has to be activated ?
 		if (extension.equals("exe"))
 		{
-			elfLoader = ElfLoader.createElfLoader(file.getAbsolutePath());
+			elfLoader = ElfLoader.createElfLoader(result.getFile().getAbsolutePath());
 		}
 		else if (extension.equals("ihex"))
 		{
-			hexLoader = HexLoader.createHexLoader(file.getAbsolutePath());
+			hexLoader = HexLoader.createHexLoader(result.getFile().getAbsolutePath());
 		}
 
 		// add loaders
 		if (elfLoader != null)
 		{
 			// default key is 1 = TOS_NODE_ID
-			result.getElfLoaders().put(1, elfLoader);
+			result.setElfLoader(elfLoader);
 		}
 		else if (hexLoader != null)
 		{
 			// default key is 1 = TOS_NODE_ID
-			result.getHexLoaders().put(1, hexLoader);
+			result.setHexLoader(hexLoader);
+			result.getiHexRecordsListByNodeId().put(1, hexLoader.getRecords());
 		}
 		else
 		{
-			return null;
+			IOHandler.doOutput("FileLoaderTask: Can't create any loader!");
+			return false;
 		}
 
-		result.setFile(file);
+		// update entry of file manager
+		ArrayList<FileManagerEntry> files = FileManager.getInstance().getFileManagerEntries();
+		FileManagerEntry currentFileManagerEntry = null;
+		boolean foundEntry = false;
+		for (Iterator<FileManagerEntry> iterator = files.iterator(); iterator.hasNext();)
+		{
+			currentFileManagerEntry = iterator.next();
 
-		return result;
+			// compare file paths
+			if (currentFileManagerEntry.getFile().getAbsolutePath().equals(result.getFile().getAbsolutePath()))
+			{
+				foundEntry = true;
+				break;
+			}
+
+		}
+
+		// overwrite entry
+		if (foundEntry == true)
+		{
+			currentFileManagerEntry = result;
+		}
+		else
+		{
+			IOHandler.doOutput("FileLoaderTask: Can't overwrite/find FileManagerEntry!");
+		}
+
+		return true;
 	}
 
 
 
 
 	@Override
-	protected void onPostExecute(FileManagerEntry entry)
+	protected void onPostExecute(Boolean successful)
 	{
-		// update entry of file manager
-		if (entry != null)
-		{
-			ArrayList<FileManagerEntry> files = FileManager.getInstance().getFiles();
-			FileManagerEntry currentFileManagerEntry = null;
-			boolean foundEntry = false;
-			for (Iterator<FileManagerEntry> iterator = files.iterator(); iterator.hasNext();)
-			{
-				currentFileManagerEntry = iterator.next();
-
-				// compare file paths
-				if (currentFileManagerEntry.getFile().getAbsolutePath().equals(entry.getFile().getAbsolutePath()))
-				{
-					foundEntry = true;
-					break;
-				}
-
-			}
-
-			// overwrite entry
-			if (foundEntry == true)
-			{
-				//TODO add or overwrite hexloaders
-				currentFileManagerEntry = entry;
-			}
-			else
-			{
-				// TODO handle Error
-			}
-		}
 
 	}
 

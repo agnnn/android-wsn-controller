@@ -39,7 +39,7 @@ import de.rwth.comsys.ihex.HexLoader;
 
 public class AndroidWSNControllerActivity extends Activity
 {
-
+ 
 	private UsbManager mManager = null;
 	private ArrayList<UsbDevice> mDevice = null;
 	private TextView textView = null;
@@ -145,7 +145,7 @@ public class AndroidWSNControllerActivity extends Activity
 
 		telosBConnect = new TelosBConnector(mManager, this);
 		//textView.append("telosBConnector created\n");
-	}   
+	}    
  
 	/**
 	 * Setting up actionbar menu icons/layout.
@@ -167,6 +167,11 @@ public class AndroidWSNControllerActivity extends Activity
 	        	refreshMoteList();
 	        	return true;
 	        case R.id.action_flash:
+	        	
+	        	 Intent myIntent = new Intent(AndroidWSNControllerActivity.this, FlashActivity.class);
+	        	 startActivity(myIntent);
+	        	 
+	        	 
 	        	try
 				{
 					HexLoader hexLoader = HexLoader.createHexLoader(
