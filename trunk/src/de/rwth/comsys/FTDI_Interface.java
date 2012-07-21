@@ -1,5 +1,6 @@
 package de.rwth.comsys;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
@@ -19,8 +20,12 @@ import android.util.Log;
  * @author Christian & Stephan
  * 
  */
-public class FTDI_Interface
+public class FTDI_Interface implements Serializable
 {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 9038295518851959666L;
 	private UsbDeviceConnection deviceConnection;
 	private FtdiInterfaceError lastError;
 	private UsbEndpoint sendEndpoint;
@@ -29,15 +34,10 @@ public class FTDI_Interface
 	private FTDI232BM_Matching_MSP430_Baudrates baudrate;
 
 
-
-
 	@SuppressWarnings("unused")
 	private FTDI_Interface()
 	{
 	};
-
-
-
 
 	/**
 	 * Create a new FTDI_Interface instance to connect to a certain device with a ftdi
