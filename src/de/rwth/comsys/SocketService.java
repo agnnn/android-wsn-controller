@@ -7,22 +7,19 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.zip.CRC32;
 
+import android.app.Activity;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-import de.rwth.comsys.enums.FTDI232BM_Matching_MSP430_Baudrates;
-import de.rwth.comsys.enums.FTDI_Constants;
-import de.rwth.comsys.enums.MSP430_Commands;
 import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.helpers.PacketCrc;
 
 public class SocketService extends Service {
 
-	private static AndroidWSNControllerActivity context;
+	private static Activity context;
 	private volatile HashMap<Integer, SocketThread> threads;
 
 	final int READ_CYCLE_TIMEOUT = 1000; // time between 2 read cycles
@@ -86,7 +83,7 @@ public class SocketService extends Service {
 	}
 
 	public static synchronized void setContext(
-			AndroidWSNControllerActivity context2) {
+			Activity context2) {
 		if (context != null) {
 			context = context2;
 		}

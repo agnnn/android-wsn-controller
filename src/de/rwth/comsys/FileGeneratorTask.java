@@ -8,6 +8,7 @@ import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.Record;
 
 import android.os.AsyncTask;
+import android.util.Log;
 
 /**
  * 
@@ -20,6 +21,9 @@ import android.os.AsyncTask;
  */
 public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Boolean>
 {
+
+	private AndroidWSNControllerActivity listener;
+
 
 	@Override
 	protected Boolean doInBackground(FileManagerEntry... params)
@@ -44,7 +48,7 @@ public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Bool
 					boolean checkManipulation = currentElfLoader.manipulateLoadedFileByName("TOS_NODE_ID", currentNodeId);
 					if(checkManipulation == false)
 					{
-						IOHandler.doOutput("FileGeneratorTask: Can't manipulate loadedFile by TOS_NODE_ID!");
+						Log.w("GENERATOR","FileGeneratorTask: Can't manipulate loadedFile by TOS_NODE_ID!");
 						return false;
 					}
 					
@@ -59,7 +63,7 @@ public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Bool
 					}
 					else
 					{						
-						IOHandler.doOutput("FileGeneratorTask: Can't create Records!");
+						Log.w("GENERATOR","FileGeneratorTask: Can't create Records!");
 						return false;
 					}
 					
@@ -70,7 +74,7 @@ public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Bool
 		}
 		else
 		{
-			IOHandler.doOutput("FileGeneratorTask: Nothing to generate, because no ELF is avaible!");
+			Log.w("GENERATOR","FileGeneratorTask: Nothing to generate, because no ELF is avaible!");
 		}
 
 		return true;
@@ -80,6 +84,11 @@ public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Bool
 	@Override
 	protected void onPostExecute(Boolean successful)
 	{
+		listener.onFinishedGenerate(successful);
+	}
 
+
+	public void registerListener(AndroidWSNControllerActivity context) {
+		this.listener = context;
 	}
 }

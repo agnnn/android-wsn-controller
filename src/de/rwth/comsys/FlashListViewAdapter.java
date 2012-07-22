@@ -2,6 +2,8 @@ package de.rwth.comsys;
 
 import java.util.List;
 
+import de.rwth.comsys.helpers.IOHandler;
+
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +15,7 @@ import android.widget.TextView;
 
 public class FlashListViewAdapter extends ArrayAdapter<String> {
 	int resource;
+	
 
 	public FlashListViewAdapter(Context cont, int _resource, List<String> items) {
 		super(cont, _resource, items);
@@ -35,7 +38,10 @@ public class FlashListViewAdapter extends ArrayAdapter<String> {
 		TextView t1 = (TextView) rl.findViewById(R.id.mote_name);
 		t1.setText(moteName);
 		EditText b1 = (EditText) rl.findViewById(R.id.nodeId);
-		b1.setText(position);
+		if(b1 == null)
+			IOHandler.doOutput("EditText is null");
+		//b1.setText(position);
 		return rl;
 	}
+	
 }

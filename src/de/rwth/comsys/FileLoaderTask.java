@@ -1,9 +1,11 @@
 package de.rwth.comsys;
 
 import java.util.ArrayList;
+import java.util.EventListener;
 import java.util.Iterator;
 
 import android.os.AsyncTask;
+import android.util.Log;
 import de.rwth.comsys.elf.ElfLoader;
 import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.HexLoader;
@@ -18,6 +20,8 @@ import de.rwth.comsys.ihex.HexLoader;
 public class FileLoaderTask extends AsyncTask<FileManagerEntry, Integer, Boolean>
 {
 
+	private AndroidWSNControllerActivity listener;
+	
 	@Override
 	protected Boolean doInBackground(FileManagerEntry... params)
 	{
@@ -36,7 +40,7 @@ public class FileLoaderTask extends AsyncTask<FileManagerEntry, Integer, Boolean
 		else
 		{
 			// stop execution
-			IOHandler.doOutput("FileLoaderTask: wrong input!");
+			Log.w("LOADER","FileLoaderTask: wrong input!");
 			return false;
 		}
 
@@ -47,22 +51,22 @@ public class FileLoaderTask extends AsyncTask<FileManagerEntry, Integer, Boolean
 			extension = fileName.substring(0, fileName.lastIndexOf('.'));
 			if (extension == null || extension.isEmpty())
 			{
-				IOHandler.doOutput("FileLoaderTask: File has no extension!");
+				Log.w("LOADER","FileLoaderTask: File has no extension!");
 				return false;
 			}
 
 		} catch (Exception e)
 		{
-			IOHandler.doOutput("FileLoaderTask: File has no extension!");
+			Log.w("LOADER","FileLoaderTask: File has no extension!");
 			return false;
 		}
 
 		// which loader has to be activated ?
-		if (extension.equals("exe"))
+		if (extension.contains("exe"))
 		{
 			elfLoader = ElfLoader.createElfLoader(result.getFile().getAbsolutePath());
 		}
-		else if (extension.equals("ihex"))
+		else if (extension.contains("ihex"))
 		{
 			hexLoader = HexLoader.createHexLoader(result.getFile().getAbsolutePath());
 		}
@@ -81,7 +85,7 @@ public class FileLoaderTask extends AsyncTask<FileManagerEntry, Integer, Boolean
 		}
 		else
 		{
-			IOHandler.doOutput("FileLoaderTask: Can't create any loader!");
+			Log.w("LOADER","FileLoaderTask: Can't create any loader!");
 			return false;
 		}
 
@@ -109,19 +113,23 @@ public class FileLoaderTask extends AsyncTask<FileManagerEntry, Integer, Boolean
 		}
 		else
 		{
-			IOHandler.doOutput("FileLoaderTask: Can't overwrite/find FileManagerEntry!");
+			Log.w("LOADER","FileLoaderTask: Can't overwrite/find FileManagerEntry!");
 		}
 
 		return true;
 	}
 
 
+	void registerListener(AndroidWSNControllerActivity listener)
+	{
+		this.listener = listener;
+	}
 
 
 	@Override
 	protected void onPostExecute(Boolean successful)
 	{
-
+		listener.onFinishedLoad(successful);
 	}
 
 }

@@ -14,6 +14,7 @@ import android.os.Environment;
 import de.rwth.comsys.enums.ELFErrorCode;
 import de.rwth.comsys.enums.RecordTypes;
 import de.rwth.comsys.helpers.ByteConverter;
+import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.Record;
 
 /**
@@ -224,6 +225,8 @@ public class ElfLoader
 			currentSymbolTableEntry.setName(name);
 		}
 
+		//newElfLoader.printBytesAsHex();
+		
 		return newElfLoader;
 
 	}
@@ -260,8 +263,12 @@ public class ElfLoader
 				// MSP430 compiler fault -> get first segment by SectionHeader ".text"
 				if (!firstSegmentPassed)
 				{	
+					//offset = 0x94;
+					//size = curHeader.getFileSize() - offset;
+					
 					if(sectionHeaders!=null)
 					{	
+						
 						String textHeaderString = ".text";
 						for (Iterator<SectionHeader> iterator = sectionHeaders.iterator(); iterator.hasNext();)
 						{
@@ -281,6 +288,7 @@ public class ElfLoader
 					{
 						return null;
 					}
+					
 				}
 				else
 				{
@@ -288,6 +296,7 @@ public class ElfLoader
 					size = curHeader.getFileSize();
 				}
 
+				long blaOffset = offset;
 				currentSegment = Arrays.copyOfRange(loadedFile, (int) offset, (int) (offset + size));
 				int processedBytes = currentSegment.length;
 
@@ -309,7 +318,7 @@ public class ElfLoader
 					if (!firstSegmentPassed)
 					{
 						// MSP430 compiler fault -> hardcoded
-						offset = 0x94;
+						offset = blaOffset;
 						littleEndian = createLittleEndianIntArrayByValue(startAddress + i);
 
 					}
@@ -699,29 +708,29 @@ public class ElfLoader
 	/**
 	 * Prints loaded Bytes as HEX.
 	 */
-	@SuppressWarnings("unused")
-	private void printBytesAsHex()
+	//@SuppressWarnings("unused")
+	public void printBytesAsHex()
 	{
 		String output = "";
 		if (this.loadedFile == null)
 		{
-			System.out.print("Nothing was loaded!\n");
+			IOHandler.doOutput("Nothing was loaded!\n");
 		}
 
 		for (int i = 0; i < this.loadedFile.length; i++)
 		{
 			if (i % 16 == 0)
-				System.out.print("\n");
+				IOHandler.doOutput("");
 
 			output = Integer.toHexString(this.loadedFile[i] & 0xFF).toUpperCase();
 
 			if (output.length() == 1)
 				output = "0" + output;
 
-			System.out.print(output + " ");
+			IOHandler.doOutput(output + " ");
 		}
 
-		System.out.print("\n");
+		IOHandler.doOutput("\n");
 	}
 
 
