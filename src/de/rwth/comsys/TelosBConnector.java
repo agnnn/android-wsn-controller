@@ -130,6 +130,7 @@ public class TelosBConnector
 			SocketService.setContext(context);
 			
 			Intent mySocketIntent = new Intent(context,SocketService.class);
+			
 
 			ComponentName serviceName = context.startService(mySocketIntent);
 			if(serviceName != null)

@@ -12,12 +12,16 @@
         android:layout_alignParentLeft="true"
         android:layout_centerVertical="true"  
          />
-    
-    <TextView
-        android:id="@+id/node_id"
+
+    <EditText
+        android:id="@+id/nodeId"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:ems="3"
+        android:inputType="number" 
         android:layout_alignParentRight="true"
-        android:layout_centerVertical="true"
-         />
+		android:layout_centerVertical="true"  >
+        <requestFocus />
+    </EditText>
+
 </RelativeLayout>
