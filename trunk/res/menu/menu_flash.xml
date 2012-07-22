@@ -1,0 +1,12 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/selectImage"
+        android:title="@string/menu_selectImage"
+        android:orderInCategory="1"
+        android:showAsAction="always" />
+    
+        <item android:id="@+id/startFlash"
+        android:title="@string/menu_startFlash"
+        android:orderInCategory="2"
+        android:showAsAction="always" 
+        android:visible="false"/>
+</menu>

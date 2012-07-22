@@ -5,6 +5,7 @@ package de.rwth.comsys;
 
 import java.util.ArrayList;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -26,10 +27,7 @@ public class ProgrammerThreadMSP430 extends Thread
 	private FTDI_Interface ftdiInterface;
 	private ArrayList<MSP430Command> commands;
 	public int timeout = 3000;
-	private AndroidWSNControllerActivity context;
-
-
-
+	private Activity context;
 
 	public ProgrammerThreadMSP430(ArrayList<MSP430Command> commands, FTDI_Interface ftdiInterface)
 	{
@@ -38,9 +36,6 @@ public class ProgrammerThreadMSP430 extends Thread
 				FTDI_Constants.PARITY_EVEN, FTDI_Constants.BREAK_OFF);
 		this.commands = commands;
 	}
-
-
-
 
 	public void run()
 	{
@@ -88,15 +83,10 @@ public class ProgrammerThreadMSP430 extends Thread
 	}
 
 
-
-
 	private void setPassword(byte[] password)
 	{
 		ftdiInterface.write(password, 5000);
 	}
-
-
-
 
 	private void transmitPassword(byte[] data)
 	{
@@ -553,7 +543,7 @@ public class ProgrammerThreadMSP430 extends Thread
 								MSP430Variant variant = null;
 								if ((variant = MSP430Variant.getDeviceVersion(highVersion, lowVersion)) != null)
 								{
-									context.getTelosBConnecter().setDeviceVariant(variant);
+									//context.getTelosBConnecter().setDeviceVariant(variant);
 									IOHandler.doOutput("DeviceVariant: " + variant.toString());
 								}
 								else
@@ -756,7 +746,7 @@ public class ProgrammerThreadMSP430 extends Thread
 
 
 
-	public void setContext(AndroidWSNControllerActivity context)
+	public void setContext(Activity context)
 	{
 		this.context = context;
 	}

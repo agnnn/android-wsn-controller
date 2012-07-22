@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import android.content.Context;
+import android.util.Log;
 import de.rwth.comsys.elf.ElfLoader;
 import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.HexLoader;
@@ -31,15 +33,16 @@ public class FileManagerEntry
 	/**
 	 * Starts asyncTask which loads and parses the file.
 	 */
-	public void loadFile()
+	public void loadFile(AndroidWSNControllerActivity context)
     {
 		if(file!=null){
 			FileLoaderTask task = new FileLoaderTask();
+			task.registerListener(context);
 			task.execute(new FileManagerEntry[] {this});
 		}
 		else
 		{
-			IOHandler.doOutput("FileManagerEntry: Can't start FileLoaderTask, because File is null!");;
+			Log.w("LOAD","FileManagerEntry: Can't start FileLoaderTask, because File is null!");;
 		}
     	
     }
@@ -48,15 +51,16 @@ public class FileManagerEntry
 	 * Starts asyncTask which generates missing ElfLoaders and HexLoaders by tosNodeIds.
 	 * @param tosNodeIds Defines which binaries should be generated. 
 	 */
-	public void generateFlashableFiles(){
+	public void generateFlashableFiles(AndroidWSNControllerActivity context){
 		
 		if(!tosNodeIds.isEmpty()){
 			FileGeneratorTask task = new FileGeneratorTask();
+			task.registerListener(context);
 			task.execute(new FileManagerEntry[] {this});
 		}
 		else
 		{
-			IOHandler.doOutput("FileManagerEntry: Can't start FileGeneratorTask, because tosNodeIds is empty!");;
+			Log.w("LOAD","FileManagerEntry: Can't start FileGeneratorTask, because tosNodeIds is empty!");;
 		}
 	}
 	

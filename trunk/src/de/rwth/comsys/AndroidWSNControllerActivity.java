@@ -21,6 +21,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -36,6 +37,7 @@ import android.widget.TextView;
 import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.helpers.OutputHandler;
 import de.rwth.comsys.ihex.HexLoader;
+import de.rwth.comsys.ihex.Record;
 
 public class AndroidWSNControllerActivity extends Activity {
 
@@ -49,6 +51,8 @@ public class AndroidWSNControllerActivity extends Activity {
 	private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 	ListView moteList;
 	ArrayAdapter<String> moteListAdapter;
+	String filePath = "";
+	ArrayList<Integer> tosIds = null;
 
 	/**
 	 * @return the indices of the checked motes in the moteList
@@ -165,9 +169,12 @@ public class AndroidWSNControllerActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_refresh:
+		{
 			refreshMoteList();
 			return true;
+		}
 		case R.id.action_flash:
+		{
 
 			ArrayList<CharSequence> strMoteList = new ArrayList<CharSequence>();
 			final SparseBooleanArray checkedItems = moteList.getCheckedItemPositions();
@@ -181,9 +188,17 @@ public class AndroidWSNControllerActivity extends Activity {
 			Intent myIntent = new Intent(AndroidWSNControllerActivity.this,
 					FlashActivity.class);
 			myIntent.putCharSequenceArrayListExtra("motes", strMoteList);
-			startActivity(myIntent);
+			
+			long[] items = getCheckedItems();
+			ArrayList<Integer> itemsInt = new ArrayList<Integer>();
+			for (int i = 0; i < items.length; i++) {
+				itemsInt.add((int)items[i]);
+			}
+			myIntent.putIntegerArrayListExtra("moteIndices", itemsInt);
+			startActivityForResult(myIntent,42);
 
-			try {
+			
+			/*try {
 				HexLoader hexLoader = HexLoader
 						.createHexLoader(Environment
 								.getExternalStorageDirectory()
@@ -197,16 +212,21 @@ public class AndroidWSNControllerActivity extends Activity {
 				textView.append(e.getMessage() + "\n");
 				return false;
 			}
+			*/
 			return true;
+		}
 		case R.id.action_erase:
+		{
 			try {
-				telosBConnect.execMassErase();
+				telosBConnect.execMassErase(getCheckedItems());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			return true;
+		}
 		case R.id.action_sf_on:
+		{
 			try {
 				long[] checkedItems = getCheckedItems();
 
@@ -239,7 +259,9 @@ public class AndroidWSNControllerActivity extends Activity {
 				textView.append("error: " + e.getMessage() + "\n");
 			}
 			return true;
+		}
 		case R.id.action_sf_off:
+		{
 			try {
 				long[] checkedItems = getCheckedItems();
 				for (int i = 0; i < (int) checkedItems.length; i++) {
@@ -263,6 +285,7 @@ public class AndroidWSNControllerActivity extends Activity {
 				textView.append("error: " + e.getMessage() + "\n");
 			}
 			return true;
+		}
 		default:
 			return super.onOptionsItemSelected(item);
 		}
@@ -366,6 +389,7 @@ public class AndroidWSNControllerActivity extends Activity {
 			}
 		}
 	};
+	private FileManagerEntry fmEntry;
 
 	@Override
 	public void onPause() {
@@ -398,4 +422,111 @@ public class AndroidWSNControllerActivity extends Activity {
 	public TelosBConnector getTelosBConnecter() {
 		return this.telosBConnect;
 	}
+	
+	public void generateFlashFiles()
+	{
+		fmEntry = new FileManagerEntry();
+		fmEntry.setFile(new File(this.filePath));
+		
+		if(tosIds != null)
+		{
+			fmEntry.setTosNodeIds(tosIds);
+			FileManager.getInstance().getFileManagerEntries().add(fmEntry);
+			
+			Log.w("FLASH", "start load: ");
+			fmEntry.loadFile(this);
+		}
+		else
+		{
+			Log.w("FLASHING","tos ids is null");
+		}
+	}	
+	
+	public synchronized void onFinishedLoad(boolean success)
+	{
+		Log.w("FLASH", "finished load: "+success);
+		if(success)
+		{
+			fmEntry.generateFlashableFiles(this);
+		}
+	}
+	
+	public synchronized void onFinishedGenerate(boolean success)
+	{
+		Log.w("FLASH", "finished generate"+success);
+		if(success)
+		{
+			HashMap<Integer, ArrayList<Record>> flashData = fmEntry.getiHexRecordsListByNodeId();
+			HashMap<Integer,FlashMapping> newData = new HashMap<Integer,FlashMapping>();
+			
+			HexLoader hexLoader = HexLoader
+					.createHexLoader(Environment
+							.getExternalStorageDirectory()
+							.getAbsolutePath()
+							+ File.separator
+							+ "WSN"
+							+ File.separator
+							+ "main.ihex");
+			long[] moteListIndices = getCheckedItems();
+				Log.w("GENERATED","indices null");
+			Log.w("GENERATED", "nodeIdSize: "+tosIds.size());
+			for (int i=0;i<tosIds.size();i++) {
+				
+				Log.w("GENERATED","motlistindex: "+(int)moteListIndices[i]);
+				Log.w("GENERATED","nodeId: "+tosIds.get(i));
+				Log.w("GENERATED","flashData size: "+flashData.size());
+				//FlashMapping fm = new FlashMapping((int)moteListIndices[i],flashData.get(tosIds.get(i)));
+				FlashMapping fm = new FlashMapping((int)moteListIndices[i],hexLoader.getRecords());
+				
+				/*for (Record rec : flashData.get(0)) {
+					Log.w("IHEX",rec.toString());
+				}*/
+				newData.put(tosIds.get(i), fm);
+			}
+			
+			ArrayList<Record> toCmp = flashData.get(0);
+			int i=0;
+			for (Record rec : hexLoader.getRecords()) {
+				if(!toCmp.get(i).equals(rec))
+				{
+					Log.w("COMPARE","difference at record "+i);
+					Log.w("COMPARE",rec.toString());
+					Log.w("COMPARE",toCmp.get(i).toString());
+				}
+				i++;
+			}
+			
+			try {
+				telosBConnect.execFlash(newData);
+			} catch (Exception e) {
+				Log.e("FLASHING",e.getMessage());
+			}		
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see android.app.Activity#onActivityResult(int, int, android.content.Intent)
+	 */
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		// TODO Auto-generated method stub
+		Log.w("FLASHING","we are successfully returned: "+requestCode);
+		super.onActivityResult(requestCode, resultCode, data);
+		switch(resultCode)
+		{
+		case Activity.RESULT_OK:
+		{
+			filePath = data.getStringExtra("path");
+			tosIds = data.getIntegerArrayListExtra("nodeIds");
+			
+			Log.w("FLASHING","generate flash files");
+			generateFlashFiles();
+			break;
+		}
+		default:
+			break;
+		}
+	}
+	
+	
 }

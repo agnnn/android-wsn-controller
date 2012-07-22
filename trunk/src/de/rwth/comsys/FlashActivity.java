@@ -2,48 +2,73 @@ package de.rwth.comsys;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.NavUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
+import de.rwth.comsys.ihex.Record;
 
 public class FlashActivity extends Activity {
 
 	private MenuItem flashItem = null;
 	private ArrayList<CharSequence> moteList;
-	ListView moteListView;
+	private FileManagerEntry fmEntry = null;
+	private ListView moteListView;
+	private FlashListViewAdapter moteAdapter;
+	private ArrayList<Integer> moteListIndices; 
+	ArrayList<Integer> tosNodeIds;
+	String filePath;
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_flash);
 		getActionBar().setDisplayHomeAsUpEnabled(true);
 		moteList = getIntent().getCharSequenceArrayListExtra("motes");
+		moteListIndices = getIntent().getIntegerArrayListExtra("moteIndices");
 		if(moteList == null)
+		{
 			moteList = new ArrayList<CharSequence>();
+			Log.e("GENERATED", "error retrieving data from intent");
+		}
 		
 		ArrayList<String> ml = new ArrayList<String>();
 		for (int i=0;i<moteList.size();i++) {
 			ml.add((String)moteList.get(i));
 		}
-		FlashListViewAdapter moteAdapter = new FlashListViewAdapter(this, R.layout.flash_row, ml);
+		moteAdapter = new FlashListViewAdapter(this, R.layout.flash_row, ml);
 		
 		moteListView = (ListView) findViewById(R.id.flashListView);
 		moteListView.setAdapter(moteAdapter);
+		
+		fmEntry = null;
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.activity_flash, menu);
+		getMenuInflater().inflate(R.menu.menu_flash, menu);
 		flashItem = menu.findItem(R.id.startFlash);
 		return true;
 	}
@@ -64,16 +89,31 @@ public class FlashActivity extends Activity {
 					
 					Toast.makeText(getApplicationContext(), items[item],
 							Toast.LENGTH_SHORT).show();
-					FileManagerEntry fmEntry = new FileManagerEntry();
-					fmEntry.setFile(new File((String)items[item]));
-					FileManager.getInstance().getFileManagerEntries().add(fmEntry);
 					
+					filePath = (String)items[item];
+										
 					if(flashItem != null)
 						flashItem.setVisible(true);
 				}
 			});
 			AlertDialog alert = builder.create();
 			alert.show();
+			return true;
+		case R.id.startFlash:
+			
+			tosNodeIds = new ArrayList<Integer>();
+			for (int i = 0; i < moteAdapter.getCount(); i++) {
+				//EditText moteEditText = (EditText)moteAdapter.getView(i, null, null).findViewById(R.id.nodeId);
+				//int moteId = Integer.valueOf(moteEditText.getText().toString());
+				tosNodeIds.add(i);
+			}
+			
+			Intent resultIntent = new Intent();
+			resultIntent.putIntegerArrayListExtra("nodeIds", tosNodeIds);
+			resultIntent.putExtra("path", filePath);
+			setResult(Activity.RESULT_OK,resultIntent);
+			Log.w("FLASHING","return to app");
+			finish();
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -110,4 +150,6 @@ public class FlashActivity extends Activity {
 		}
 		return result;
 	}
+	
+	
 }
