@@ -5,53 +5,65 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.zip.CRC32;
 
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
+import de.rwth.comsys.enums.FTDI232BM_Matching_MSP430_Baudrates;
+import de.rwth.comsys.enums.FTDI_Constants;
+import de.rwth.comsys.enums.MSP430_Commands;
 import de.rwth.comsys.helpers.IOHandler;
+import de.rwth.comsys.helpers.PacketCrc;
 
 public class SocketService extends Service {
 
 	private static AndroidWSNControllerActivity context;
-	private volatile HashMap<Integer,SocketThread> threads;
+	private volatile HashMap<Integer, SocketThread> threads;
 
 	final int READ_CYCLE_TIMEOUT = 1000; // time between 2 read cycles
 	final int WRITE_TIMEOUT = 100; // timeout for a write operation
 	final int READ_TIMEOUT = 100;
 	final int MAX_BUFFER_SIZE = 255;
+	final int SYNC_BYTE = 0x7E;
+	final int ESCAPE_BYTE = 0x7D;
+	final int MTU = 256;
+	final int ACK_TIMEOUT = 1000; // in milliseconds
+	final int P_ACK = 0x43;
+	final int P_PACKET_ACK = 0x44;
+	final int P_PACKET_NO_ACK = 0x45;
+	final int P_UNKNOWN = 0xFF;
+
 	private NotificationManager mNM;
 	public static volatile boolean running = false;
 	private final IBinder mBinder = new ServiceBinder();
 
 	@Override
 	public void onStart(Intent intent, int startid) {
-		this.threads = new HashMap<Integer,SocketThread>();
+		this.threads = new HashMap<Integer, SocketThread>();
 		running = true;
 	}
-	
-	public void startNewSocket(int port, int index)
-	{
-		if(index != -1 && port != -1)
-		{
-			if(!threads.containsKey(index))
-			{
-				FTDI_Interface ftdiInterface = TelosBConnector.getInterfaceByIdx(index);
-			
-				SocketThread socketThread = new SocketThread(index,port,ftdiInterface);
+
+	public void startNewSocket(int port, int index) {
+		if (index != -1 && port != -1) {
+			if (!threads.containsKey(index)) {
+				FTDI_Interface ftdiInterface = TelosBConnector
+						.getInterfaceByIdx(index);
+
+				SocketThread socketThread = new SocketThread(index, port,
+						ftdiInterface);
 				threads.put(index, socketThread);
 				socketThread.start();
-				
+
 				IOHandler.doOutput("new socket thread started...");
-			}
-			else
+			} else
 				IOHandler.doOutput("Error: Socket already opened");
-		}
-		else
-			IOHandler.doOutput("Error: idx="+index+" port="+port);
+		} else
+			IOHandler.doOutput("Error: idx=" + index + " port=" + port);
 	}
 
 	@Override
@@ -63,14 +75,14 @@ public class SocketService extends Service {
 	@Override
 	public void onDestroy() {
 		IOHandler.doOutput("service stopped!!!");
-		
+
 		// mNM.cancel(NOTIFICATION);
 	}
 
 	@Override
 	public void onCreate() {
 		// Toast.makeText(context, "Created", Toast.LENGTH_LONG).show();
-		mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+		mNM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 	}
 
 	public static synchronized void setContext(
@@ -79,7 +91,7 @@ public class SocketService extends Service {
 			context = context2;
 		}
 	}
-	
+
 	private class SocketThread extends Thread {
 		private int port;
 		private FTDI_Interface ftdiInterface;
@@ -89,35 +101,39 @@ public class SocketService extends Service {
 		private OutputStream outStream;
 		private InputStream inStream;
 		private int index;
-		
-		public SocketThread(int index,int port,FTDI_Interface ftdiInterface)
-		{
+
+		public SocketThread(int index, int port, FTDI_Interface ftdiInterface) {
 			this.index = index;
 			this.port = port;
 			this.ftdiInterface = ftdiInterface;
 			this.stopped = false;
 		}
-		public void stopSocket()
-		{
+
+		public void stopSocket() {
 			IOHandler.doOutput("in thread... stopped = true");
-			try {
-				inOutSocket.close();
-			} catch (IOException e) {
-				IOHandler.doOutput("Error: "+e.getMessage());
-				e.printStackTrace();
-			}
+			/*
+			 * try { inOutSocket.close(); } catch (IOException e) {
+			 * IOHandler.doOutput("Error: "+e.getMessage());
+			 * e.printStackTrace(); }
+			 */
 			stopped = true;
 		}
-	    @Override
-	    public void run() {
-	    	// Toast.makeText(this, "My Service Started", Toast.LENGTH_LONG).show();
-			//IOHandler.doOutput("startid: " + startid);
+
+		@Override
+		public void run() {
+			// important here to set the correct baudrate... TODO move to
+			// dynamically set the baudrate.
+			// IOHandler.doOutput("baudrate result: "+ftdiInterface.setBaudRate(56700));
+			IOHandler.doOutput("baudrate result: "
+					+ ftdiInterface.setBaudRate(115200));
 			try {
+
 				inOutSocket = new ServerSocket(port);
 				if (inOutSocket == null) {
 					IOHandler.doOutput("error: null pointer");
 					return;
 				}
+
 				IOHandler.doOutput("wait for connection on port: " + port);
 				mySock = inOutSocket.accept();
 				IOHandler.doOutput("connection accepted");
@@ -127,31 +143,88 @@ public class SocketService extends Service {
 				byte[] buffer = new byte[MAX_BUFFER_SIZE];
 				int readBytes = 0;
 				IOHandler.doOutput("start data transmit...");
-				while (!mySock.isClosed() && !stopped) // as long as there is a
-														// listener
-				{
-					IOHandler.doOutput("start forwarding");
+				boolean escaped = false;
+				boolean synced = false;
+				ftdiInterface.resetUsb();
+				// as long as there is a listener
+				while (!mySock.isClosed() && !stopped) {
 					// first perform a write operation from the user to the mote
-					readBytes = inStream.read(buffer);
-					if (readBytes != -1) {
-						ftdiInterface.write(buffer, WRITE_TIMEOUT);
-					}
+					// readBytes = inStream.read(buffer);
+					// if (readBytes != -1) {
+					// ftdiInterface.write(buffer, WRITE_TIMEOUT);
+					// }
 					// now send the data from the mote to the user
-					byte[] readMoteData = ftdiInterface.read(100);
+
+					byte[] readMoteData = ftdiInterface.read(1000);
+
+					// IOHandler.doOutput("new data, size="+readMoteData.length);
+					/*
+					 * for (byte b : readMoteData) {
+					 * IOHandler.doOutput("0x"+Integer.toHexString(b)); }
+					 */
+
 					// if some data is received, forward it to the user socket
 					if (readMoteData != null) {
-						IOHandler.doOutput("there is data to forward:");
-						outStream.write(readMoteData);
-						outStream.flush();
-					} else {
-						IOHandler.doOutput("no data from mote");
-					}
+						int count = readMoteData.length;
+						for (int i = 0; i < readMoteData.length; i++) {
+							byte curByte = readMoteData[i];
+							// TODO add synchronization
+							if (escaped) {
+								if (curByte == SYNC_BYTE) {
+									// sync byte following escape is an error,
+									// resync
 
+									synced = false;
+									continue;
+								}
+								curByte ^= 0x20;
+								escaped = false;
+							} else if (curByte == ESCAPE_BYTE) {
+								escaped = true;
+								continue;
+							} else if (curByte == SYNC_BYTE) {
+								if (count < 4) {
+									// too-small frames are ignored
+									count = 0;
+									continue;
+								}
+								// copy complete received package without last 2
+								// CRC bytes and sync bytes
+								byte[] packet = Arrays.copyOfRange(
+										readMoteData, 1, count - 3);
+
+								int readCrc = (readMoteData[count - 3] & 0xff)
+										| (readMoteData[count - 2] & 0xff) << 8;
+
+								if (PacketCrc.calc(packet, packet.length) == readCrc) {
+									IOHandler.doOutput("forward packet");
+									outStream.write(packet);
+									outStream.flush();
+									break;
+								} else {
+									IOHandler.doOutput("bad packet");
+									for (byte b : packet) {
+										IOHandler.doOutput("0x"
+												+ Integer.toHexString(b));
+									}
+									/*
+									 * We don't lose sync here. If we did,
+									 * garbage on the line at startup will cause
+									 * loss of the first packet.
+									 */
+									count = 0;
+									continue;
+								}
+							}
+
+							count++;
+						}
+					}
 					Thread.sleep(READ_CYCLE_TIMEOUT);
 				}
 
-				mySock.close();
-				IOHandler.doOutput("port "+port+" closed");
+				// mySock.close();
+				IOHandler.doOutput("port " + port + " closed");
 
 			} catch (IOException e) {
 				IOHandler.doOutput(e.getMessage());
@@ -161,36 +234,31 @@ public class SocketService extends Service {
 				e.printStackTrace();
 			} catch (Exception e) {
 				IOHandler.doOutput(e.getMessage());
-			}
-			finally
-			{
+			} finally {
 				threads.remove(index);
 			}
-			// if everything went well there is a need to open the socket again?! 
-	    }  
+			// if everything went well there is a need to open the socket
+			// again?!
+		}
 	};
-	
+
 	public class ServiceBinder extends Binder {
 		SocketService getService() {
-	        return SocketService.this;
-	    }
+			return SocketService.this;
+		}
 	}
 
 	public void stopSocket(int index) {
 		SocketThread mySocketThread = threads.get(index);
-		if(mySocketThread != null && mySocketThread.isAlive())
-		{
+		if (mySocketThread != null && mySocketThread.isAlive()) {
 			mySocketThread.stopSocket();
-		}
-		else
-		{
+		} else {
 			IOHandler.doOutput("Error: no thread available!");
 		}
 	}
 
 	public boolean getSFState(int idx) {
-		if(threads != null)
-		{
+		if (threads != null) {
 			return threads.containsKey(idx);
 		}
 		return false;
