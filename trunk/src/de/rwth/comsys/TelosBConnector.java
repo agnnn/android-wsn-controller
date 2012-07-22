@@ -188,10 +188,14 @@ public class TelosBConnector
 		long[] checkedItems = context.getCheckedItems();
 		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
 		for (long itemIdx : checkedItems) {
-			if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
-			{
-				itemsToFlash.add(itemIdx);				
+			if(myThread.size()-1 >= itemIdx){ // check if a thread for this mote is there
+				if ( !(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
+				{
+					itemsToFlash.add(itemIdx);				
+				}
 			}
+			else
+				itemsToFlash.add(itemIdx);	
 		}
 		long[] itemAry = new long[itemsToFlash.size()];
 		
@@ -225,10 +229,14 @@ public class TelosBConnector
 		long[] checkedItems = context.getCheckedItems();
 		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
 		for (long itemIdx : checkedItems) {
-			if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
-			{
-				itemsToFlash.add(itemIdx);				
+			if(myThread.size()-1 >= itemIdx){ // check if a thread for this mote is there
+				if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
+				{
+					itemsToFlash.add(itemIdx);				
+				}
 			}
+			else
+				itemsToFlash.add(itemIdx);
 		}
 		long[] itemAry = new long[itemsToFlash.size()];
 		
