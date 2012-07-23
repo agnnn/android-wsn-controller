@@ -57,6 +57,10 @@ public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Bool
 					
 					// update ihexRecordsList ... convert elf to ihex
 					ArrayList<Record> currentRecords = currentElfLoader.createIhexRecords();
+					
+					/*for (Record record : currentRecords) {
+						Log.w("INTERNAL",record.toString());
+					}*/
 					if(currentRecords != null && !currentRecords.isEmpty())
 					{
 						result.getiHexRecordsListByNodeId().put(currentNodeId, currentRecords);

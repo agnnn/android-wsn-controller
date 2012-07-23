@@ -18,8 +18,10 @@ import android.database.Cursor;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.media.MediaScannerConnection;
+import android.media.MediaScannerConnection.MediaScannerConnectionClient;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.NavUtils;
 import android.util.Log;
@@ -27,10 +29,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 import de.rwth.comsys.ihex.Record;
 
-public class FlashActivity extends Activity {
+public class FlashActivity extends Activity implements MediaScannerConnectionClient{
 
 	private MenuItem flashItem = null;
 	private ArrayList<CharSequence> moteList;
@@ -40,6 +43,7 @@ public class FlashActivity extends Activity {
 	private ArrayList<Integer> moteListIndices; 
 	ArrayList<Integer> tosNodeIds;
 	String filePath;
+	private MediaScannerConnection mConnection;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -62,6 +66,9 @@ public class FlashActivity extends Activity {
 		
 		moteListView = (ListView) findViewById(R.id.flashListView);
 		moteListView.setAdapter(moteAdapter);
+		
+		mConnection= new MediaScannerConnection(this, this);
+		mConnection.connect();
 		
 		fmEntry = null;
 	}
@@ -149,6 +156,19 @@ public class FlashActivity extends Activity {
 			cursor.moveToNext();
 		}
 		return result;
+	}
+
+	public void onMediaScannerConnected()
+	{
+		// TODO Auto-generated method stub
+		mConnection.scanFile(Environment.getExternalStorageDirectory() + "/WSN/main.exe.blinker", null);
+	}
+
+
+	public void onScanCompleted(String path, Uri uri)
+	{
+		// TODO Auto-generated method stub
+		mConnection.disconnect(); 
 	}
 	
 	
