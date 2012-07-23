@@ -475,8 +475,8 @@ public class AndroidWSNControllerActivity extends Activity {
 				Log.w("GENERATED","motlistindex: "+(int)moteListIndices[i]);
 				Log.w("GENERATED","nodeId: "+tosIds.get(i));
 				Log.w("GENERATED","flashData size: "+flashData.size());
-				//FlashMapping fm = new FlashMapping((int)moteListIndices[i],flashData.get(tosIds.get(i)));
-				FlashMapping fm = new FlashMapping((int)moteListIndices[i],hexLoader.getRecords());
+				FlashMapping fm = new FlashMapping((int)moteListIndices[i],flashData.get(tosIds.get(i)));
+				//FlashMapping fm = new FlashMapping((int)moteListIndices[i],hexLoader.getRecords());
 				
 				/*for (Record rec : flashData.get(0)) {
 					Log.w("IHEX",rec.toString());
@@ -484,17 +484,17 @@ public class AndroidWSNControllerActivity extends Activity {
 				newData.put(tosIds.get(i), fm);
 			}
 			
-			ArrayList<Record> toCmp = flashData.get(0);
+			/*ArrayList<Record> toCmp = flashData.get(tosIds.get(0));
 			int i=0;
 			for (Record rec : hexLoader.getRecords()) {
-				if(!toCmp.get(i).equals(rec))
+				if(!toCmp.get(i).toString().equals(rec.toString()))
 				{
 					Log.w("COMPARE","difference at record "+i);
 					Log.w("COMPARE",rec.toString());
 					Log.w("COMPARE",toCmp.get(i).toString());
 				}
 				i++;
-			}
+			}*/
 			
 			try {
 				telosBConnect.execFlash(newData);
