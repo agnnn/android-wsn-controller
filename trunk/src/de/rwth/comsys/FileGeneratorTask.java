@@ -49,7 +49,7 @@ public class FileGeneratorTask extends AsyncTask<FileManagerEntry, Integer, Bool
 					if(checkManipulation == false)
 					{
 						Log.w("GENERATOR","FileGeneratorTask: Can't manipulate loadedFile by TOS_NODE_ID!");
-						return false;
+						//return false;  // Blink doesn't have one
 					}
 					
 					// Manipulate
