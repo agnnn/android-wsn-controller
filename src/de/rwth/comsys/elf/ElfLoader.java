@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 import android.os.Environment;
+import android.util.Log;
 
 import de.rwth.comsys.enums.ELFErrorCode;
 import de.rwth.comsys.enums.RecordTypes;
@@ -225,8 +226,8 @@ public class ElfLoader
 			currentSymbolTableEntry.setName(name);
 		}
 
-		//newElfLoader.printBytesAsHex();
-		
+		// newElfLoader.printBytesAsHex();
+
 		return newElfLoader;
 
 	}
@@ -262,33 +263,39 @@ public class ElfLoader
 			{
 				// MSP430 compiler fault -> get first segment by SectionHeader ".text"
 				if (!firstSegmentPassed)
-				{	
-					//offset = 0x94;
-					//size = curHeader.getFileSize() - offset;
-					
-					if(sectionHeaders!=null)
-					{	
-						
+				{
+					// offset = 0x94;
+					// size = curHeader.getFileSize() - offset;
+
+					if (sectionHeaders != null)
+					{
+
 						String textHeaderString = ".text";
 						for (Iterator<SectionHeader> iterator = sectionHeaders.iterator(); iterator.hasNext();)
 						{
 							SectionHeader currentSectionHeader = iterator.next();
-							if(textHeaderString.equals(currentSectionHeader))
+							if (textHeaderString.equals(currentSectionHeader.getName()))
 							{
 								offset = currentSectionHeader.getSectionFileOffset();
 								size = curHeader.getFileSize() - offset;
 								break;
 							}
-							
+
 						}
-						
-					
+
+						if (offset == 0)
+						{
+							Log.w("ELFLOADER", "Can't create iHex records, because section \".text\" doesn't exist!");
+							return null;
+						}
+
 					}
 					else
 					{
+						Log.w("ELFLOADER", "Can't create iHex records, because sectionHeaders is null!");
 						return null;
 					}
-					
+
 				}
 				else
 				{
@@ -708,7 +715,7 @@ public class ElfLoader
 	/**
 	 * Prints loaded Bytes as HEX.
 	 */
-	//@SuppressWarnings("unused")
+	// @SuppressWarnings("unused")
 	public void printBytesAsHex()
 	{
 		String output = "";
