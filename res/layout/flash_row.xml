@@ -14,14 +14,13 @@
          />
 
     <EditText
-        android:id="@+id/nodeId"
+        android:id="@+id/list_nodeId"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:ems="3"
         android:inputType="number" 
         android:layout_alignParentRight="true"
 		android:layout_centerVertical="true"  >
-        <requestFocus />
     </EditText>
 
 </RelativeLayout>

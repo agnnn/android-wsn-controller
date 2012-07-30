@@ -1,18 +1,16 @@
 package de.rwth.comsys;
 
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
 
-import de.rwth.comsys.enums.FTDI232BM_Matching_MSP430_Baudrates;
-import de.rwth.comsys.enums.FTDI_Constants;
-import de.rwth.comsys.enums.FtdiInterfaceError;
-import de.rwth.comsys.helpers.IOHandler;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.util.Log;
+import de.rwth.comsys.enums.FTDI232BM_Matching_MSP430_Baudrates;
+import de.rwth.comsys.enums.FTDI_Constants;
+import de.rwth.comsys.enums.FtdiInterfaceError;
 
 /**
  * Establishes and manages connection between FTDI and Android.
@@ -20,12 +18,8 @@ import android.util.Log;
  * @author Christian & Stephan
  * 
  */
-public class FTDI_Interface implements Serializable
+public class FTDI_Interface
 {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 9038295518851959666L;
 	private UsbDeviceConnection deviceConnection;
 	private FtdiInterfaceError lastError;
 	private UsbEndpoint sendEndpoint;
@@ -288,7 +282,7 @@ public class FTDI_Interface implements Serializable
 			int curRead = 0;
 			long startTime = new Date().getTime();
 			long curTime;
-			byte[] buffer = new byte[64];
+			byte[] buffer = new byte[64]; // max buffer size of FT232BM chip
 			// TODO current chunk size must be determined
 			
 			// read within timeout or end of stream
@@ -482,7 +476,6 @@ public class FTDI_Interface implements Serializable
 
 	}
 
-	//setBitMode
     /**
      * Sets the bit mask bit mode.
      *
@@ -511,20 +504,9 @@ public class FTDI_Interface implements Serializable
                     return 0;
             }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+       
     /**
-     * Convert baud rate. This function is for internal use only.
+     * Convert baud rate
      *
      * @param baudrate the baudrate
      * @param value_index: values that gives to usb control transfer. First int is "value", second is "index"

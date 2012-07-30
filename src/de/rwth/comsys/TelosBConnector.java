@@ -19,7 +19,6 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
-import android.widget.TextView;
 import de.rwth.comsys.enums.FTDI232BM_Matching_MSP430_Baudrates;
 import de.rwth.comsys.enums.MSP430Variant;
 import de.rwth.comsys.enums.MSP430_Commands;
@@ -27,16 +26,15 @@ import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.ihex.Record;
 
 /**
- * Used to set up an Android communication with a Telosb. Provides several commands which
- * can be executed.
+ * Used to set up an Android communication with a TelosB mote with a FT232BM USB UART converting chip 
+ * and a MSP430 microcontroller. 
+ * Provides several commands which can be executed.
  * 
  * @author Christian & Stepahn
  * 
  */
 public class TelosBConnector
 {
-
-	private TextView textView;
 	private UsbInterface mUSBInterface;
 	private ArrayList<UsbDevice> mDevice;
 	private ArrayList<UsbEndpoint> sendingEndpointMSP430;
@@ -45,7 +43,7 @@ public class TelosBConnector
 	private SocketServiceConnection serviceConnection;
 	private static ArrayList<FTDI_Interface> ftdiInterface;
 	private UsbManager mManager;
-	//private ArrayList<MSP430Command> commandList;
+//private ArrayList<MSP430Command> commandList;
 	private byte[] password;
 	private final int PASSWORD_LENGTH = 32;
 	private MSP430Variant deviceVariant = null;
@@ -53,6 +51,11 @@ public class TelosBConnector
 	ArrayList<ProgrammerThreadMSP430> myThread = null;
 	long[] checkedItems;
 
+	/**
+	 * Sets the parentActivity as the context and allows communications over the usbManager
+	 * @param usbManager
+	 * @param parentActivity
+	 */
 	public TelosBConnector(UsbManager usbManager, Activity parentActivity)
 	{
 		if (usbManager == null)
@@ -73,6 +76,9 @@ public class TelosBConnector
 		setDefaultPassword();
 	}
 	
+	/**
+	 * resets the default password to 32 times 0xFF
+	 */
 	private void setDefaultPassword()
 	{
 		// set the default password
@@ -83,6 +89,11 @@ public class TelosBConnector
 		}
 		this.password = defaultPwd;
 	}
+	
+	/**
+	 * resets the TelosBConnector
+	 * this is necessary when the activity returns from the background
+	 */
 	public void clear()
 	{
 		this.mDevice = new ArrayList<UsbDevice>();
@@ -96,7 +107,11 @@ public class TelosBConnector
 		setDefaultPassword();
 	}
 
-
+	/**
+	 * checks if the specified service is still running
+	 * @param serviceName
+	 * @return true if running, false otherwise
+	 */
 	private boolean isMyServiceRunning(String serviceName) {
 	    ActivityManager manager = (ActivityManager) context.getSystemService(Activity.ACTIVITY_SERVICE);
 	    for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
@@ -108,6 +123,15 @@ public class TelosBConnector
 	    return false;
 	}
 
+	/**
+	 * Starts a SerialForwarder for the given mote specified by the index in the motelist by use of a SocketService
+	 * 
+	 * @param dstPort
+	 * @param idx
+	 * @return true if a serial forwarder was started successfully, false if an error occured or one was already running
+	 * @throws UnknownHostException
+	 * @throws IOException
+	 */
 	public boolean execSerialForwarder(String dstPort, int idx) throws UnknownHostException, IOException
 	{
 		//IOHandler.doOutput("execSerialForwarder\n");
@@ -118,7 +142,7 @@ public class TelosBConnector
 		}
 		
 		/**
-		 * There is still a listindex bug starting the SF
+		 * TODO There is still a listindex bug starting the SF
 		 * because a wrong association is made from checked list indices and not correctly from all indices
 		 */
 		if(!SocketService.running)
@@ -128,7 +152,7 @@ public class TelosBConnector
 			
 			Intent mySocketIntent = new Intent(context,SocketService.class);
 			
-
+			// starts the created SocketService
 			ComponentName serviceName = context.startService(mySocketIntent);
 			if(serviceName != null)
 			{
@@ -140,6 +164,8 @@ public class TelosBConnector
 			}
 		}
 	
+		// if the service is already running or the previous start of the service was successful
+		// then create the serial forwarder
 		if(SocketService.running)
 		{
 			Integer port = Integer.valueOf(dstPort);
@@ -154,6 +180,11 @@ public class TelosBConnector
 		return false;
 	}
 	
+	/**
+	 * Returns if a serial forwarder is running for a given mote
+	 * @param idx, the mote index in the mote list
+	 * @return true if running, false otherwise
+	 */
 	public boolean getSFState(int idx)
 	{
 		if(SocketService.running)
@@ -162,6 +193,15 @@ public class TelosBConnector
 		}
 		return false;
 	}
+	
+	/**
+	 * Stops a serial forwarder for a given mote
+	 * 
+	 * @param idx, the index of the mote in the motelist
+	 * @return true if successfully sent the stop command, false if no forwarder was running for the given mote
+	 * @throws UnknownHostException
+	 * @throws IOException
+	 */
 	public boolean execStopSerialForwarder(int idx) throws UnknownHostException, IOException
 	{
 		if ((myThread.size()-1) >= idx && myThread.get(idx) != null && myThread.get(idx).isAlive())
@@ -197,30 +237,7 @@ public class TelosBConnector
 			else
 				throw new Exception("No Connection available");
 		}
-		/*
-		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
-		for (long itemIdx : checkedItems) {
-			if(myThread.size()-1 >= itemIdx){ // check if a thread for this mote is there
-				if ( !(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
-				{
-					itemsToFlash.add(itemIdx);				
-				}
-			}
-			else
-				itemsToFlash.add(itemIdx);	
-		}
-		long[] itemAry = new long[itemsToFlash.size()];
-		
-		for (int i=0;i<itemsToFlash.size();i++)
-		{
-			itemAry[i] = itemsToFlash.get(i);
-		}
-		*/
-		
 	}
-
-
-
 
 	/**
 	 * Flashes the given Records. Performs a mass erase, transmit password, the flash and
@@ -232,15 +249,14 @@ public class TelosBConnector
 	public void execFlash(HashMap<Integer,FlashMapping> flashData) throws Exception
 	{
 		Log.w("FLASHING","start flash");
-//		ArrayList<Long> itemsToFlash = new ArrayList<Long>();
-		ArrayList<MSP430Command> commands = new ArrayList<MSP430Command>();
+		
 		for (Map.Entry<Integer,FlashMapping> entry : flashData.entrySet()) {
-			
+			ArrayList<MSP430Command> commands = new ArrayList<MSP430Command>();
 			int nodeId = entry.getKey();
 			FlashMapping nodeInfo = entry.getValue();
 			int nodeIndex = nodeInfo.getInterfaceIndex();
 			ArrayList<Record> nodeRecord = nodeInfo.getRecords();
-			Log.w("FLASHING","start for index: "+nodeIndex);
+			Log.w("FLASHING","start for index: "+nodeIndex+ " nodeId: "+nodeId);
 			commands.clear();
 			commands.add(new MSP430Command(MSP430_Commands.MASS_ERASE));
 			commands.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD, MSP430PacketFactory
@@ -256,49 +272,14 @@ public class TelosBConnector
 			Log.w("FLASHING","start execution thread");
 			startExecutionThread(commands,nodeIndex);
 		}
-		/*
-		for (long itemIdx : checkedItems) {
-			if(myThread.size()-1 >= itemIdx){ // check if a thread for this mote is there
-				if (!(myThread.get((int)itemIdx) != null && myThread.get((int)itemIdx).isAlive()))
-				{
-					itemsToFlash.add(itemIdx);				
-				}
-			}
-			else
-				itemsToFlash.add(itemIdx);
-		}
-		long[] itemAry = new long[itemsToFlash.size()];
-		
-		for (int i=0;i<itemsToFlash.size();i++) {
-			itemAry[i] = itemsToFlash.get(i);
-		}
-		
-		IOHandler.doOutput("exec flash erase\n");
-
-		if (mDeviceConnection != null)
-		{
-			commandList.clear();
-			commandList.add(new MSP430Command(MSP430_Commands.MASS_ERASE));
-			commandList.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD, MSP430PacketFactory
-					.createSetPasswordCommand(this.password)));
-			// commandList.add(new MSP430Command(MSP430_Commands.TX_BSL_VERSION));
-			// TODO request variant
-			commandList.add(new MSP430Command(MSP430_Commands.CHANGE_BAUDRATE,
-					FTDI232BM_Matching_MSP430_Baudrates.BAUDRATE_38400, MSP430Variant.MSP430_F161x));
-			// commandList.add(new MSP430Command(MSP430_Commands.TRANSMIT_PASSWORD,
-			// MSP430PacketFactory.createSetPasswordCommand(this.password)));
-			commandList.add(new MSP430Command(MSP430_Commands.FLASH, records));
-			commandList.add(new MSP430Command(MSP430_Commands.LOAD_PC, Record.getStartAddress(records)));
-			startExecutionThread(itemAry);
-		}
-		else
-			throw new Exception("No Connection available");
-			*/
 	}
 
 
-
-
+	/**
+	 * internal method to start a ProgrammerThread executing a list of commands for a certain mote
+	 * @param commands
+	 * @param nodeIndex
+	 */
 	private void startExecutionThread(ArrayList<MSP430Command> commands,int nodeIndex)
 	{
 		// iterate all indices where the checkbox is set
@@ -337,9 +318,6 @@ public class TelosBConnector
 			break;
 		}
 	}
-
-
-
 
 	/**
 	 * Sets global device, endpoints, opens connection to MSP430.
@@ -433,9 +411,6 @@ public class TelosBConnector
 		}
 	}
 
-
-
-
 	/**
 	 * @return the password
 	 */
@@ -443,9 +418,6 @@ public class TelosBConnector
 	{
 		return password;
 	}
-
-
-
 
 	/**
 	 * @param password the password to set
@@ -455,9 +427,10 @@ public class TelosBConnector
 		this.password = password;
 	}
 
-
-
-
+	/**
+	 * currently not implemented
+	 * @throws Exception
+	 */
 	public void execGetBslVersion() throws Exception
 	{
 		/*
@@ -486,14 +459,20 @@ public class TelosBConnector
 			*/
 	}
 
-
-
-
+	/**
+	 * gets called from the FTDI_Interface if the device variant was read out of the MSP430 chip
+	 * @param variant
+	 */
 	public synchronized void setDeviceVariant(MSP430Variant variant)
 	{
 		this.deviceVariant = variant;
 	}
 	
+	/**
+	 * returns the interface for a certain mote
+	 * @param idx, index of a mote specified by its position in the mote list
+	 * @return
+	 */
 	public static synchronized FTDI_Interface getInterfaceByIdx(int idx)
 	{
 		return ftdiInterface.get(idx);
