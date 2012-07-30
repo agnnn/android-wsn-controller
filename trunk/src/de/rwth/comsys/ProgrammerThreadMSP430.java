@@ -83,11 +83,19 @@ public class ProgrammerThreadMSP430 extends Thread
 	}
 
 
+	/**
+	 * sets the password on the MSP430
+	 * @param password
+	 */
 	private void setPassword(byte[] password)
 	{
 		ftdiInterface.write(password, 5000);
 	}
 
+	/**
+	 * transmit the password to the MSP430 to inlock password protected commands
+	 * @param data
+	 */
 	private void transmitPassword(byte[] data)
 	{
 		try
@@ -127,8 +135,6 @@ public class ProgrammerThreadMSP430 extends Thread
 			IOHandler.doOutput(e.getMessage());
 		}
 	}
-
-
 
 
 	/**
@@ -234,8 +240,6 @@ public class ProgrammerThreadMSP430 extends Thread
 		IOHandler.doOutput("Succesfully flashed!");
 
 	}
-
-
 
 
 	/**
@@ -435,7 +439,7 @@ public class ProgrammerThreadMSP430 extends Thread
 	 */
 	private void requestData(int startAddress, short length)
 	{
-		// TODO alles
+		// TODO requestData: not yet implemented
 		/**
 		 * int maxRetrys = 5; int currentRetry = 0;
 		 * 
@@ -482,11 +486,8 @@ public class ProgrammerThreadMSP430 extends Thread
 	}
 
 
-
-
 	/**
-	 * TODO
-	 * 
+	 * reads the version of the BSL out of the MSP430 chip
 	 */
 	private void requestBSLVersion()
 	{
@@ -622,9 +623,10 @@ public class ProgrammerThreadMSP430 extends Thread
 		}
 	}
 
-
-
-
+	/**
+	 * sends a BSL synchronization sequence
+	 * @return true if successfully synchronized (response: 0x90), false otherwise
+	 */
 	private boolean sendBslSync()
 	{
 		byte data[] = new byte[1];
@@ -645,9 +647,11 @@ public class ProgrammerThreadMSP430 extends Thread
 		return false;
 	}
 
-
-
-
+	/**
+	 * starts or resets the BSL in the MSP430
+	 * @param   if invokeBsl is true then the BSL will be started,
+	 * 			otherwise only a reset is done
+	 */
 	private void sendResetSequence(boolean invokeBsl)
 	{
 		if (invokeBsl)
@@ -676,9 +680,9 @@ public class ProgrammerThreadMSP430 extends Thread
 
 	}
 
-
-
-
+	/**
+	 * resets the TelosB
+	 */
 	private void telosStop()
 	{
 		ftdiInterface.setDTR(true);
@@ -686,9 +690,10 @@ public class ProgrammerThreadMSP430 extends Thread
 		ftdiInterface.setDTR(false);
 	}
 
-
-
-
+	/**
+	 * writes a single byte to the MSP430
+	 * @param dataByte
+	 */
 	private void telosWriteByte(byte dataByte)
 	{
 		telosWriteBit((dataByte & 0x80) > 0);
@@ -702,9 +707,9 @@ public class ProgrammerThreadMSP430 extends Thread
 		telosWriteBit(false); // "acknowledge"
 	}
 
-
-
-
+	/**
+	 * restarts the TelosB
+	 */
 	private void telosStart()
 	{
 		ftdiInterface.setDTR(false);
@@ -712,9 +717,10 @@ public class ProgrammerThreadMSP430 extends Thread
 		ftdiInterface.setDTR(true);
 	}
 
-
-
-
+	/**
+	 * writes a single bit to the MSP430, used for the entry sequence
+	 * @param bit
+	 */
 	private void telosWriteBit(boolean bit)
 	{
 		try
@@ -732,9 +738,11 @@ public class ProgrammerThreadMSP430 extends Thread
 		}
 	}
 
-
-
-
+	/**
+	 * write the specified command to the MSP430 to the given address
+	 * @param addr
+	 * @param cmd
+	 */
 	private void telosWriteCmd(byte addr, byte cmd)
 	{
 		telosStart();
@@ -743,9 +751,10 @@ public class ProgrammerThreadMSP430 extends Thread
 		telosStop();
 	}
 
-
-
-
+	/**
+	 * set the context of the thread to direct the log output
+	 * @param context
+	 */
 	public void setContext(Activity context)
 	{
 		this.context = context;

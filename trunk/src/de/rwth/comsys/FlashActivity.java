@@ -29,6 +29,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 import de.rwth.comsys.ihex.Record;
@@ -71,6 +72,7 @@ public class FlashActivity extends Activity implements MediaScannerConnectionCli
 		mConnection.connect();
 		
 		fmEntry = null;
+
 	}
 
 	@Override
@@ -109,9 +111,20 @@ public class FlashActivity extends Activity implements MediaScannerConnectionCli
 		case R.id.startFlash:
 			
 			tosNodeIds = new ArrayList<Integer>();
+			
 			for (int i = 0; i < moteAdapter.getCount(); i++) {
-				//EditText moteEditText = (EditText)moteAdapter.getView(i, null, null).findViewById(R.id.nodeId);
-				//int moteId = Integer.valueOf(moteEditText.getText().toString());
+				//customListView = (RelativeLayout)moteAdapter.getView(0, customListView, null);
+				/*RelativeLayout customListView = (RelativeLayout)moteAdapter.getView(0, null, null);
+				Log.w("FLASHING","customListView: "+customListView);
+				Log.w("FLASHING","childrenCount: "+customListView.getChildCount());
+				
+				//int children = customListView.getChildCount();
+				EditText nodeIdInput = (EditText)customListView.getChildAt(1);
+				Log.w("FLASHING","nodeIdInput: "+nodeIdInput);
+				int moteId = Integer.parseInt(nodeIdInput.getText().toString());
+				Log.w("FLASHING","moteId: "+moteId);
+			/*	int moteId = CustomTextWatcher.getNodeId(i);
+				Log.w("FLASHING","moteId added: "+moteId);*/
 				tosNodeIds.add(i);
 			}
 			
@@ -161,7 +174,8 @@ public class FlashActivity extends Activity implements MediaScannerConnectionCli
 	public void onMediaScannerConnected()
 	{
 		// TODO Auto-generated method stub
-		mConnection.scanFile(Environment.getExternalStorageDirectory() + "/WSN/main.exe.blinker", null);
+		mConnection.scanFile(Environment.getExternalStorageDirectory() + "/WSN/main.exe.nodeid", null);
+		mConnection.scanFile(Environment.getExternalStorageDirectory() + "/WSN/main.exe.serial", null);
 	}
 
 

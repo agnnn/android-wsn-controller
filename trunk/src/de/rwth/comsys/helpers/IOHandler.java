@@ -5,12 +5,14 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
+/**
+ * This class captures all output from within different threads and writes it to the log TextView
+ * @author Stephan & Christian
+ *
+ */
 public class IOHandler
 {
 	private static AndroidWSNControllerActivity context;
-
-
-
 
 	/**
 	 * This is a thread save version of doing output operation on the UI
@@ -32,9 +34,11 @@ public class IOHandler
 		}
 	}
 
-
-
-
+	
+	/**
+	 * sets the context of the handler
+	 * @param androidWSNControllerActivity
+	 */
 	public static void setContext(AndroidWSNControllerActivity androidWSNControllerActivity)
 	{
 		IOHandler.context = androidWSNControllerActivity;

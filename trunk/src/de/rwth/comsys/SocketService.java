@@ -17,6 +17,14 @@ import android.os.IBinder;
 import de.rwth.comsys.helpers.IOHandler;
 import de.rwth.comsys.helpers.PacketCrc;
 
+/**
+ * @author Christian & Stephan
+ * 
+ *         Service to run in the background supporting a socket connection for a
+ *         serial forwarder. this service is essential for being able to forward
+ *         and receive packets when the application is not running in the
+ *         foreground
+ */
 public class SocketService extends Service {
 
 	private static Activity context;
@@ -35,7 +43,6 @@ public class SocketService extends Service {
 	final int P_PACKET_NO_ACK = 0x45;
 	final int P_UNKNOWN = 0xFF;
 
-	private NotificationManager mNM;
 	public static volatile boolean running = false;
 	private final IBinder mBinder = new ServiceBinder();
 
@@ -79,16 +86,25 @@ public class SocketService extends Service {
 	@Override
 	public void onCreate() {
 		// Toast.makeText(context, "Created", Toast.LENGTH_LONG).show();
-		mNM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 	}
 
-	public static synchronized void setContext(
-			Activity context2) {
+	/**
+	 * Sets the context in which the service is running to determin where the
+	 * log messages are sent to
+	 * 
+	 * @param Context
+	 *            (calling Activity)
+	 */
+	public static synchronized void setContext(Activity context2) {
 		if (context != null) {
 			context = context2;
 		}
 	}
 
+	/*
+	 * creates a thread to be able to run the service independently in the
+	 * background
+	 */
 	private class SocketThread extends Thread {
 		private int port;
 		private FTDI_Interface ftdiInterface;
@@ -106,6 +122,9 @@ public class SocketService extends Service {
 			this.stopped = false;
 		}
 
+		/**
+		 * stops the socket connections
+		 */
 		public void stopSocket() {
 			IOHandler.doOutput("in thread... stopped = true");
 			/*
@@ -116,6 +135,10 @@ public class SocketService extends Service {
 			stopped = true;
 		}
 
+		/**
+		 * starts the thread, sending and receiving data over the socket TODO:
+		 * currently supports only receiving capabilities
+		 */
 		@Override
 		public void run() {
 			// important here to set the correct baudrate... TODO move to
@@ -146,19 +169,17 @@ public class SocketService extends Service {
 				// as long as there is a listener
 				while (!mySock.isClosed() && !stopped) {
 					// first perform a write operation from the user to the mote
-					// readBytes = inStream.read(buffer);
-					// if (readBytes != -1) {
-					// ftdiInterface.write(buffer, WRITE_TIMEOUT);
-					// }
-					// now send the data from the mote to the user
 
+					/* TODO do testing before use
+					readBytes = inStream.read(buffer);
+					if (readBytes != -1) {
+						ftdiInterface.write(buffer, WRITE_TIMEOUT);
+					}
+					*/
+					// TODO now send the data from the mote to the user
+					
+					// read the data from the mote
 					byte[] readMoteData = ftdiInterface.read(1000);
-
-					// IOHandler.doOutput("new data, size="+readMoteData.length);
-					/*
-					 * for (byte b : readMoteData) {
-					 * IOHandler.doOutput("0x"+Integer.toHexString(b)); }
-					 */
 
 					// if some data is received, forward it to the user socket
 					if (readMoteData != null) {
@@ -220,7 +241,8 @@ public class SocketService extends Service {
 					Thread.sleep(READ_CYCLE_TIMEOUT);
 				}
 
-				// mySock.close();
+				// close the socket for cleanup purposes
+				mySock.close();
 				IOHandler.doOutput("port " + port + " closed");
 
 			} catch (IOException e) {
@@ -234,17 +256,23 @@ public class SocketService extends Service {
 			} finally {
 				threads.remove(index);
 			}
-			// if everything went well there is a need to open the socket
+			// TODO if everything went well there is a need to open the socket
 			// again?!
 		}
 	};
 
+	/**
+	 * Allows a SocketService to access the Service after creation
+	 */
 	public class ServiceBinder extends Binder {
 		SocketService getService() {
 			return SocketService.this;
 		}
 	}
 
+	/**
+	 * ends the socket connections
+	 */
 	public void stopSocket(int index) {
 		SocketThread mySocketThread = threads.get(index);
 		if (mySocketThread != null && mySocketThread.isAlive()) {
@@ -254,6 +282,11 @@ public class SocketService extends Service {
 		}
 	}
 
+	/**
+	 * Checks whether a SerialForwarding is running
+	 * @param idx of the mote in the moteList
+	 * @return true if running, false if not
+	 */
 	public boolean getSFState(int idx) {
 		if (threads != null) {
 			return threads.containsKey(idx);

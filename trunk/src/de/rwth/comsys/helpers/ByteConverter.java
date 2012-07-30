@@ -1,5 +1,11 @@
 package de.rwth.comsys.helpers;
 
+/**
+ * Converts byte arrays between short and byte
+ * 
+ * @author Stephan & Christian
+ *
+ */
 public class ByteConverter
 {
 
@@ -20,8 +26,6 @@ public class ByteConverter
 
 		return result;
 	}
-
-
 
 
 	/**
